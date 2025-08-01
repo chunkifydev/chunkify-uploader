@@ -1,5 +1,5 @@
 export class ChunkifyUploader extends HTMLElement {
-    private apiEndpoint: string;
+    private _apiEndpoint: string | (() => Promise<string>);
     private currentFile: File | null = null;
 
     private uploadArea!: HTMLElement;
@@ -12,11 +12,12 @@ export class ChunkifyUploader extends HTMLElement {
     private fileInfo!: HTMLElement;
     private uploadButton!: HTMLElement;
     private retryButton!: HTMLElement;
+    private retryContainer!: HTMLElement;
 
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.apiEndpoint = this.getAttribute('api-endpoint') || '/api/upload';
+        this._apiEndpoint = this.getAttribute('api-endpoint') || '';
     }
 
     connectedCallback() {
@@ -31,28 +32,42 @@ export class ChunkifyUploader extends HTMLElement {
         this.progressBar = this.shadowRoot!.querySelector('.progress-bar')!;
         this.progressText = this.shadowRoot!.querySelector('.progress-text')!;
         this.errorMessage = this.shadowRoot!.querySelector('.error-message')!;
-        this.successMessage = this.shadowRoot!.querySelector('.success-message')!;
+        this.successMessage =
+            this.shadowRoot!.querySelector('.success-message')!;
         this.fileInfo = this.shadowRoot!.querySelector('.file-info')!;
-        this.uploadButton = this.getButton('upload');
-        this.retryButton = this.getButton('retry');
+        this.uploadButton = this.getSlotOrDefault('upload-button');
+        this.retryButton = this.getSlotOrDefault('retry-button');
+        this.retryContainer = this.shadowRoot!.querySelector('.retry-container')!;
+    }
+
+    get apiEndpoint(): string | (() => Promise<string>) {
+        return this.getAttribute('api-endpoint') ?? this._apiEndpoint;
+    }
+
+    set apiEndpoint(value: string | (() => Promise<string>)) {
+        if (value === this.apiEndpoint) return;
+        if (typeof value === 'string') {
+            this.setAttribute('api-endpoint', value);
+        } else if (value == undefined) {
+            this.removeAttribute('api-endpoint');
+        }
+        this._apiEndpoint = value;
     }
 
     // Helper method to get default or slot buttons
-    // Helper method to get default or slot buttons
-    private getButton(buttonType: 'upload' | 'retry'): HTMLElement {
-        const slotName = buttonType === 'upload' ? 'upload-button' : 'retry-button';
-        const className = buttonType === 'upload' ? '.upload-button' : '.retry-button';
-
-        // Check if slot has content
-        const slot = this.shadowRoot!.querySelector(`slot[name="${slotName}"]`) as HTMLSlotElement;
+    private getSlotOrDefault(slotName: string): HTMLElement {
+        const slot = this.shadowRoot!.querySelector(
+            `slot[name="${slotName}"]`
+        ) as HTMLSlotElement;
         const hasSlottedContent = slot && slot.assignedNodes().length > 0;
-        
+
         if (hasSlottedContent) {
-            // Return the slotted element
             return slot.assignedNodes()[0] as HTMLElement;
         } else {
-            // Return the default button
-            return this.shadowRoot!.querySelector(className) as HTMLElement;
+            // Use the slot name as the default selector
+            return this.shadowRoot!.querySelector(
+                `.${slotName}`
+            ) as HTMLElement;
         }
     }
 
@@ -162,12 +177,11 @@ export class ChunkifyUploader extends HTMLElement {
 
             slot[name="retry-button"] {
                 margin: 10px auto;
-                display: inline-block;
             }
             
             .success-message {
                 color: var(--success-message-color, #28a745);
-                margin-top: 10px;
+                margin-top: 10px; 
                 font-weight: var(--success-message-font-weight, bold);
                 font-size: var(--success-message-font-size, inherit);
                 text-align: center;
@@ -175,7 +189,7 @@ export class ChunkifyUploader extends HTMLElement {
 
             .error-message {
                 color: var(--error-message-color, #dc3545);
-                margin-top: 10px;
+                margin-top: 10px; 
                 font-weight: var(--error-message-font-weight, bold);
                 font-size: var(--error-message-font-size, inherit);
                 text-align: center;
@@ -205,11 +219,19 @@ export class ChunkifyUploader extends HTMLElement {
                 </div>
             </div>
             <!-- Slot for custom retry button -->
-            <slot name="retry-button">
-                <button class="retry-button" style="display: none;">Try Again</button>
-            </slot>
-            <div class="error-message" style="display: none;"></div>
-            <div class="success-message" style="display: none;"></div>
+            <div class="retry-container" style="display: none;">
+                <slot name="retry-button">
+                    <button class="retry-button">Try Again</button>
+                </slot>
+            </div>
+            <div class="error-message" style="display: none;">
+                <slot name="error-message">
+                </slot>
+            </div>
+            <div class="success-message" style="display: none;">
+                <slot name="success-message">
+                </slot>
+            </div>
           </div>
         `;
     }
@@ -274,7 +296,7 @@ export class ChunkifyUploader extends HTMLElement {
         this.successMessage.style.display = 'none';
         this.fileInfo.style.display = 'none';
         this.uploadButton.style.display = 'block';
-        this.retryButton.style.display = 'none';
+        this.retryContainer.style.display = 'none';
 
         this.uploadArea.style.display = 'block';
 
@@ -293,6 +315,14 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private async handleFile(file: File) {
+        // Check endpoint early
+        if (!this.apiEndpoint) {
+            this.showError(
+                'No endpoint provided. Please set api-endpoint attribute or assign a function to the apiEndpoint property.'
+            );
+            return;
+        }
+
         this.currentFile = file;
         this.showFileInfo(file);
 
@@ -312,13 +342,11 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private async uploadFile(file: File) {
-        // 1. Get upload URL from user's API
-        const uploadData = await this.getUploadUrl();
+        const uploadUrl = await this.getUploadUrl();
+        // 1. Upload file using your code
+        await this.uploadToUrl(file, uploadUrl);
 
-        // 2. Upload file using your code
-        await this.uploadToUrl(file, uploadData.upload_url);
-
-        // 3. Notify completion
+        // 2. Notify completion
         this.dispatchEvent(
             new CustomEvent('upload-complete', {
                 detail: {
@@ -329,22 +357,16 @@ export class ChunkifyUploader extends HTMLElement {
         );
     }
 
-    private async getUploadUrl() {
-        const response = await fetch(this.apiEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+    private async getUploadUrl(): Promise<string> {
+        const endpoint = this.apiEndpoint;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-                `Error: server responded with ${response.status}`
-            );
+        // Check if it's a function and execute it
+        if (typeof endpoint === 'function') {
+            return await endpoint();
+        } else {
+            // Use as direct URL
+            return endpoint;
         }
-
-        return response.json();
     }
 
     private async uploadToUrl(file: File, uploadUrl: string) {
@@ -400,11 +422,11 @@ export class ChunkifyUploader extends HTMLElement {
         this.errorMessage.style.display = 'none';
         this.successMessage.style.display = 'none';
         this.uploadButton.style.display = 'none';
-        this.retryButton.style.display = 'none';
+        this.retryContainer.style.display = 'none';
 
         if (this.currentFile) {
             this.fileInfo.textContent = `Uploading: ${this.currentFile.name}`;
-          }
+        }
     }
 
     private showSuccess(file: File) {
@@ -414,7 +436,16 @@ export class ChunkifyUploader extends HTMLElement {
 
         this.uploadButton.style.display = 'none';
         this.fileInfo.style.display = 'none';
-        this.successMessage.textContent = `✅ ${file.name} uploaded successfully!`;
+
+        // Check if user provided custom content
+        const slot = this.shadowRoot!.querySelector(
+            'slot[name="success-message"]'
+        ) as HTMLSlotElement;
+        const hasCustomContent = slot && slot.assignedNodes().length > 0;
+
+        if (!hasCustomContent) {
+            this.successMessage.textContent = `✅ ${file.name} uploaded successfully!`;
+        }
 
         this.dispatchEvent(
             new CustomEvent('upload-success', {
@@ -424,14 +455,22 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private showError(message: string) {
-    
         this.setAttribute('error', '');
         this.progress.style.display = 'none';
         this.fileInfo.style.display = 'none';
         this.errorMessage.style.display = 'block';
         this.uploadButton.style.display = 'none';
-        this.retryButton.style.display = 'block';
-        this.errorMessage.textContent = message;
+        this.retryContainer.style.display = 'block';
+
+        // Check if user provided custom content
+        const slot = this.shadowRoot!.querySelector(
+            'slot[name="error-message"]'
+        ) as HTMLSlotElement;
+        const hasCustomContent = slot && slot.assignedNodes().length > 0;
+
+        if (!hasCustomContent) {
+            this.errorMessage.textContent = message;
+        }
 
         this.dispatchEvent(
             new CustomEvent('upload-error', {
