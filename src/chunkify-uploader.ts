@@ -3,16 +3,19 @@ export class ChunkifyUploader extends HTMLElement {
     private currentFile: File | null = null;
 
     private uploadArea!: HTMLElement;
+    private titleText!: HTMLElement;
     private fileInput!: HTMLInputElement;
     private progress!: HTMLElement;
     private progressBar!: HTMLElement;
     private progressText!: HTMLElement;
-    private errorMessage!: HTMLElement;
-    private successMessage!: HTMLElement;
+    private errorMessage!: HTMLSlotElement;
+    private successMessage!: HTMLSlotElement;
     private fileInfo!: HTMLElement;
     private uploadButton!: HTMLElement;
     private retryButton!: HTMLElement;
     private retryContainer!: HTMLElement;
+    private errorContainer!: HTMLElement;
+    private successContainer!: HTMLElement;
 
     constructor() {
         super();
@@ -27,17 +30,26 @@ export class ChunkifyUploader extends HTMLElement {
     }
     private cacheElements() {
         this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
+        this.titleText = this.getSlotOrDefault('title');
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
         this.progress = this.shadowRoot!.querySelector('.progress')!;
         this.progressBar = this.shadowRoot!.querySelector('.progress-bar')!;
         this.progressText = this.shadowRoot!.querySelector('.progress-text')!;
-        this.errorMessage = this.shadowRoot!.querySelector('.error-message')!;
-        this.successMessage =
-            this.shadowRoot!.querySelector('.success-message')!;
+        this.errorMessage = this.shadowRoot!.querySelector(
+            'slot[name="error-message"]'
+        ) as HTMLSlotElement;
+        this.successMessage = this.shadowRoot!.querySelector(
+            'slot[name="success-message"]'
+        ) as HTMLSlotElement;
         this.fileInfo = this.shadowRoot!.querySelector('.file-info')!;
         this.uploadButton = this.getSlotOrDefault('upload-button');
         this.retryButton = this.getSlotOrDefault('retry-button');
-        this.retryContainer = this.shadowRoot!.querySelector('.retry-container')!;
+        this.retryContainer =
+            this.shadowRoot!.querySelector('.retry-container')!;
+        this.errorContainer =
+            this.shadowRoot!.querySelector('.error-container')!;
+        this.successContainer =
+            this.shadowRoot!.querySelector('.success-container')!;
     }
 
     get apiEndpoint(): string | (() => Promise<string>) {
@@ -178,22 +190,35 @@ export class ChunkifyUploader extends HTMLElement {
             slot[name="retry-button"] {
                 margin: 10px auto;
             }
+
+            slot[name="title"] {
+                font-size: var(--title-font-size, 16px);
+                font-weight: var(--title-font-weight,semibold);
+        
+            }
             
-            .success-message {
+            slot[name="success-message"] {
                 color: var(--success-message-color, #28a745);
-                margin-top: 10px; 
                 font-weight: var(--success-message-font-weight, bold);
                 font-size: var(--success-message-font-size, inherit);
-                text-align: center;
+               
                 }
 
-            .error-message {
+            slot[name="error-message"] {
                 color: var(--error-message-color, #dc3545);
-                margin-top: 10px; 
                 font-weight: var(--error-message-font-weight, bold);
                 font-size: var(--error-message-font-size, inherit);
-                text-align: center;
                 }
+
+            .error-container {
+                margin-top: var(--error-margin-top, 10px);
+                text-align:center;
+            }
+
+            .success-container {
+                margin-top: var(--success-margin-top, 10px);
+                text-align:center;
+            }
             
             .file-info {
               margin-top: 10px;
@@ -205,7 +230,7 @@ export class ChunkifyUploader extends HTMLElement {
           <div class="upload-area">
             <input type="file" accept="video/*" style="display: none;">
             <slot name="title">
-                <p>Drop video file here or click the button below</p>
+                <p class="title">Drop video file here or click the button below</p>
             </slot>
             <!-- Slot for custom upload button -->
             <slot name="upload-button">
@@ -224,11 +249,11 @@ export class ChunkifyUploader extends HTMLElement {
                     <button class="retry-button">Try Again</button>
                 </slot>
             </div>
-            <div class="error-message" style="display: none;">
+            <div class="error-container" style="display: none;">
                 <slot name="error-message">
                 </slot>
             </div>
-            <div class="success-message" style="display: none;">
+            <div class="success-container" style="display: none;">
                 <slot name="success-message">
                 </slot>
             </div>
@@ -292,10 +317,11 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('success');
 
         this.progress.style.display = 'none';
-        this.errorMessage.style.display = 'none';
-        this.successMessage.style.display = 'none';
+        this.errorContainer.style.display = 'none';
+        this.successContainer.style.display = 'none';
         this.fileInfo.style.display = 'none';
         this.uploadButton.style.display = 'block';
+        this.titleText.style.display = 'block';
         this.retryContainer.style.display = 'none';
 
         this.uploadArea.style.display = 'block';
@@ -318,7 +344,8 @@ export class ChunkifyUploader extends HTMLElement {
         // Check endpoint early
         if (!this.apiEndpoint) {
             this.showError(
-                'No endpoint provided. Please set api-endpoint attribute or assign a function to the apiEndpoint property.'
+                'No endpoint attribute provided. Please set endpoint attribute or assign a function to the endpoint property.',
+                -1
             );
             return;
         }
@@ -331,7 +358,10 @@ export class ChunkifyUploader extends HTMLElement {
             await this.uploadFile(file);
             this.showSuccess(file);
         } catch (error) {
-            this.showError((error as Error).message);
+            const errorMessage =
+                (error as any).message || (error as Error).message;
+            const statusCode = (error as any).status;
+            this.showError(errorMessage, statusCode);
         }
     }
 
@@ -384,15 +414,20 @@ export class ChunkifyUploader extends HTMLElement {
                 if (xhr.status === 200) {
                     resolve(xhr.response);
                 } else {
-                    reject(
-                        new Error(`Upload failed with status: ${xhr.status}`)
-                    );
+                    reject({
+                        message: `Upload failed with status: ${xhr.status}`,
+                        status: xhr.status,
+                    });
                 }
             };
 
             xhr.onerror = () =>
-                reject(new Error('Network error during upload'));
-            xhr.ontimeout = () => reject(new Error('Upload timed out'));
+                reject({
+                    message: 'Network error during upload',
+                    status: 0,
+                });
+            xhr.ontimeout = () =>
+                reject({ message: 'Upload timed out', status: 408 });
 
             xhr.open('PUT', uploadUrl);
             xhr.setRequestHeader('Content-Type', 'application/octet-stream');
@@ -416,11 +451,12 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('error');
         this.removeAttribute('success');
 
+        this.titleText.style.display = 'none';
         this.progress.style.display = 'block';
         this.fileInfo.style.display = 'block';
 
-        this.errorMessage.style.display = 'none';
-        this.successMessage.style.display = 'none';
+        this.errorContainer.style.display = 'none';
+        this.successContainer.style.display = 'none';
         this.uploadButton.style.display = 'none';
         this.retryContainer.style.display = 'none';
 
@@ -431,17 +467,17 @@ export class ChunkifyUploader extends HTMLElement {
 
     private showSuccess(file: File) {
         this.setAttribute('success', '');
+        this.titleText.style.display = 'none';
         this.progress.style.display = 'none';
-        this.successMessage.style.display = 'block';
+        this.successContainer.style.display = 'block';
 
         this.uploadButton.style.display = 'none';
         this.fileInfo.style.display = 'none';
 
         // Check if user provided custom content
-        const slot = this.shadowRoot!.querySelector(
-            'slot[name="success-message"]'
-        ) as HTMLSlotElement;
-        const hasCustomContent = slot && slot.assignedNodes().length > 0;
+        const hasCustomContent =
+            this.successMessage &&
+            this.successMessage.assignedNodes().length > 0;
 
         if (!hasCustomContent) {
             this.successMessage.textContent = `✅ ${file.name} uploaded successfully!`;
@@ -454,19 +490,24 @@ export class ChunkifyUploader extends HTMLElement {
         );
     }
 
-    private showError(message: string) {
+    private showError(message: string, statusCode?: number) {
         this.setAttribute('error', '');
+        this.titleText.style.display = 'none';
         this.progress.style.display = 'none';
         this.fileInfo.style.display = 'none';
-        this.errorMessage.style.display = 'block';
+        this.errorContainer.style.display = 'block';
         this.uploadButton.style.display = 'none';
         this.retryContainer.style.display = 'block';
 
+        console.log('statusCode', statusCode);
+        // If statusCode is -1, it means the endpoint is not set so return early with the message.
+        if (statusCode === -1) {
+            this.errorContainer.innerHTML = message;
+            return;
+        }
         // Check if user provided custom content
-        const slot = this.shadowRoot!.querySelector(
-            'slot[name="error-message"]'
-        ) as HTMLSlotElement;
-        const hasCustomContent = slot && slot.assignedNodes().length > 0;
+        const hasCustomContent =
+            this.errorMessage && this.errorMessage.assignedNodes().length > 0;
 
         if (!hasCustomContent) {
             this.errorMessage.textContent = message;
@@ -474,7 +515,10 @@ export class ChunkifyUploader extends HTMLElement {
 
         this.dispatchEvent(
             new CustomEvent('upload-error', {
-                detail: { error: message },
+                detail: {
+                    error: message,
+                    statusCode: statusCode,
+                },
             })
         );
     }
