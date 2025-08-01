@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunkify Uploader Test</title>
+</head>
+<body> 
+    <!-- Your component with your endpoint -->
+     
+    <chunkify-uploader api-endpoint="http://localhost:8787/ap/upload">
+        <button slot="upload-button" class="my-upload-btn">Upload Video</button>
+    </chunkify-uploader>
+
+    <style>
+        chunkify-uploader {
+            --progress-bar-color: #ff6b6b;
+            width: 30%;
+            margin: 100px auto;
+        }
+        .my-upload-btn {
+          background: #ff6b6b;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 16px;
+        }
+    </style>
+    
+    <!-- Event listeners to see what's happening -->
+    <div id="logs"></div>
+    
+    <script type="module">
+        import './dist/chunkify-uploader.js';
+        
+        const uploader = document.querySelector('chunkify-uploader');
+        const logs = document.getElementById('logs');
+        
+        // Listen for events
+        uploader.addEventListener('upload-progress', (e) => {
+            console.log('Progress:', e.detail.progress);
+            logs.innerHTML += `<p>Progress: ${e.detail.progress}%</p>`;
+        });
+        
+        uploader.addEventListener('upload-complete', (e) => {
+            console.log('Upload complete:', e.detail);
+            logs.innerHTML += `<p>✅ Upload complete: ${e.detail.fileName}</p>`;
+        });
+        
+        uploader.addEventListener('upload-error', (e) => {
+            console.error('Upload error:', e.detail.error);
+            logs.innerHTML += `<p>❌ Error: ${e.detail.error}</p>`;
+        });
+    </script>
+</body>
+</html>
