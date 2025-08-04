@@ -276,7 +276,7 @@ export class ChunkifyUploader extends HTMLElement {
           </style>
           
           <div class="upload-area">
-            <input type="file" accept="video/*" style="display: none;">
+            <input type="file" accept="video/*,audio/*" style="display: none;">
             <slot name="title">
                 <p class="title">Drop video file here or click the button below</p>
             </slot>
