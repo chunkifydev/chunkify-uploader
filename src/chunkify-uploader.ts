@@ -123,7 +123,9 @@ export class ChunkifyUploader extends HTMLElement {
             }
 
             :host([error]) .error-container,
-            :host([error]) .retry-container {
+            
+            /* Show retry container only if NOT no-retry */
+            :host([error]:not([no-retry])) .retry-container {
                 display: block;
             }
 
