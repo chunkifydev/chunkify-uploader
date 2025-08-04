@@ -66,6 +66,19 @@ export class ChunkifyUploader extends HTMLElement {
         this._endpoint = value;
     }
 
+    get maxFileSize(): number {
+        const value = this.getAttribute('max-file-size');
+        return value ? parseInt(value, 10) : 0; // 0 means no limit
+    }
+    
+    set maxFileSize(value: number) {
+        if (value > 0) {
+            this.setAttribute('max-file-size', value.toString());
+        } else {
+            this.removeAttribute('max-file-size');
+        }
+    }
+
     private render() {
         this.shadowRoot!.innerHTML = `
           <style>
@@ -382,6 +395,16 @@ export class ChunkifyUploader extends HTMLElement {
             return;
         }
 
+        // Check file size
+        const maxSize = this.maxFileSize;
+        if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
+            this.showError(
+                `File size exceeds the maximum allowed size of ${maxSize} MB`,
+                -2
+            );
+            return;
+        }
+
         this.currentFile = file;
 
         try {
@@ -389,8 +412,7 @@ export class ChunkifyUploader extends HTMLElement {
             await this.uploadFile(file);
             this.showSuccess(file);
         } catch (error) {
-            const errorMessage =
-                (error as any).message || (error as Error).message;
+            const errorMessage =(error as any).message || (error as Error).message;
             const statusCode = (error as any).status;
             this.showError(errorMessage, statusCode);
         }
@@ -494,7 +516,8 @@ export class ChunkifyUploader extends HTMLElement {
         this.setAttribute('uploading', '');
 
         if (this.currentFile) {
-            this.fileInfo.textContent = `Uploading: ${this.currentFile.name}`;
+            const sizeInMB = (this.currentFile.size / (1024 * 1024)).toFixed(2);
+            this.fileInfo.textContent = `Uploading: ${this.currentFile.name} (${sizeInMB} MB)`;
         }
     }
 
@@ -525,8 +548,8 @@ export class ChunkifyUploader extends HTMLElement {
         this.setAttribute('error', '');
 
         console.log('Error attribute set:', this.hasAttribute('error'));
-    console.log('Error container display:', this.errorContainer.style.display);
-    console.log('Error container computed style:', window.getComputedStyle(this.errorContainer).display);
+        console.log('Error container display:', this.errorContainer.style.display);
+        console.log('Error container computed style:', window.getComputedStyle(this.errorContainer).display);
 
 
         console.log('statusCode', statusCode);
@@ -547,7 +570,7 @@ export class ChunkifyUploader extends HTMLElement {
             new CustomEvent('upload-error', {
                 detail: {
                     error: message,
-                    statusCode: statusCode,
+                    status: statusCode,
                 },
             })
         );
