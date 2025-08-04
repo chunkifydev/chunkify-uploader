@@ -389,10 +389,20 @@ export class ChunkifyUploader extends HTMLElement {
 
     private async getUploadUrl(): Promise<string> {
         const endpoint = this.apiEndpoint;
-
+    
         // Check if it's a function and execute it
         if (typeof endpoint === 'function') {
-            return await endpoint();
+            try {
+                return await endpoint();
+            } catch (error) {
+                // If the error has a status, pass it through
+                if (error && typeof error === 'object' && 'status' in error) {
+                    console.log('error with status', error);
+                    throw error;
+                }
+                // Otherwise, add status 0 for network errors
+                throw { message: (error as Error).message, status: 0 };
+            }
         } else {
             // Use as direct URL
             return endpoint;
@@ -424,10 +434,10 @@ export class ChunkifyUploader extends HTMLElement {
             xhr.onerror = () =>
                 reject({
                     message: 'Network error during upload',
-                    status: 0,
+                    status: xhr.status,
                 });
             xhr.ontimeout = () =>
-                reject({ message: 'Upload timed out', status: 408 });
+                reject({ message: 'Upload timed out', status: xhr.status });
 
             xhr.open('PUT', uploadUrl);
             xhr.setRequestHeader('Content-Type', 'application/octet-stream');
