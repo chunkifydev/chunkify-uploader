@@ -1,9 +1,9 @@
 export class ChunkifyUploader extends HTMLElement {
-    private _apiEndpoint: string | (() => Promise<string>);
+    private _endpoint: string | (() => Promise<string>);
     private currentFile: File | null = null;
 
     private uploadArea!: HTMLElement;
-    private titleText!: HTMLElement;
+    private titleText!: HTMLSlotElement;
     private fileInput!: HTMLInputElement;
     private progress!: HTMLElement;
     private progressBar!: HTMLElement;
@@ -11,8 +11,8 @@ export class ChunkifyUploader extends HTMLElement {
     private errorMessage!: HTMLSlotElement;
     private successMessage!: HTMLSlotElement;
     private fileInfo!: HTMLElement;
-    private uploadButton!: HTMLElement;
-    private retryButton!: HTMLElement;
+    private uploadButton!: HTMLSlotElement;
+    private retryButton!: HTMLSlotElement;
     private retryContainer!: HTMLElement;
     private errorContainer!: HTMLElement;
     private successContainer!: HTMLElement;
@@ -20,7 +20,7 @@ export class ChunkifyUploader extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this._apiEndpoint = this.getAttribute('api-endpoint') || '';
+        this._endpoint = this.getAttribute('endpoint') || '';
     }
 
     connectedCallback() {
@@ -30,7 +30,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
     private cacheElements() {
         this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
-        this.titleText = this.getSlotOrDefault('title');
+        this.titleText = this.shadowRoot!.querySelector('slot[name="title"]')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
         this.progress = this.shadowRoot!.querySelector('.progress')!;
         this.progressBar = this.shadowRoot!.querySelector('.progress-bar')!;
@@ -42,8 +42,8 @@ export class ChunkifyUploader extends HTMLElement {
             'slot[name="success-message"]'
         ) as HTMLSlotElement;
         this.fileInfo = this.shadowRoot!.querySelector('.file-info')!;
-        this.uploadButton = this.getSlotOrDefault('upload-button');
-        this.retryButton = this.getSlotOrDefault('retry-button');
+        this.uploadButton = this.shadowRoot!.querySelector('slot[name="upload-button"]')!;
+        this.retryButton = this.shadowRoot!.querySelector('slot[name="retry-button"]')!;
         this.retryContainer =
             this.shadowRoot!.querySelector('.retry-container')!;
         this.errorContainer =
@@ -52,35 +52,18 @@ export class ChunkifyUploader extends HTMLElement {
             this.shadowRoot!.querySelector('.success-container')!;
     }
 
-    get apiEndpoint(): string | (() => Promise<string>) {
-        return this.getAttribute('api-endpoint') ?? this._apiEndpoint;
+    get endpoint(): string | (() => Promise<string>) {
+        return this.getAttribute('endpoint') ?? this._endpoint;
     }
 
-    set apiEndpoint(value: string | (() => Promise<string>)) {
-        if (value === this.apiEndpoint) return;
+    set endpoint(value: string | (() => Promise<string>)) {
+        if (value === this._endpoint) return;
         if (typeof value === 'string') {
-            this.setAttribute('api-endpoint', value);
+            this.setAttribute('endpoint', value);
         } else if (value == undefined) {
-            this.removeAttribute('api-endpoint');
+            this.removeAttribute('endpoint');
         }
-        this._apiEndpoint = value;
-    }
-
-    // Helper method to get default or slot buttons
-    private getSlotOrDefault(slotName: string): HTMLElement {
-        const slot = this.shadowRoot!.querySelector(
-            `slot[name="${slotName}"]`
-        ) as HTMLSlotElement;
-        const hasSlottedContent = slot && slot.assignedNodes().length > 0;
-
-        if (hasSlottedContent) {
-            return slot.assignedNodes()[0] as HTMLElement;
-        } else {
-            // Use the slot name as the default selector
-            return this.shadowRoot!.querySelector(
-                `.${slotName}`
-            ) as HTMLElement;
-        }
+        this._endpoint = value;
     }
 
     private render() {
@@ -262,7 +245,10 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private setupEventListeners() {
-        this.uploadButton.addEventListener('click', () => {
+        const uploadSlot = this.shadowRoot!.querySelector('slot[name="upload-button"]') as HTMLSlotElement;
+        const uploadElement = uploadSlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.upload-button')!;
+
+        uploadElement.addEventListener('click', () => {
             if (!this.isUploading()) {
                 this.fileInput.click();
             }
@@ -298,7 +284,10 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
-        this.retryButton.addEventListener('click', (e) => {
+        const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
+        const retryElement = retrySlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.retry-button')!;
+
+        retryElement.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.resetState();
@@ -342,7 +331,7 @@ export class ChunkifyUploader extends HTMLElement {
 
     private async handleFile(file: File) {
         // Check endpoint early
-        if (!this.apiEndpoint) {
+        if (!this._endpoint) {
             this.showError(
                 'No endpoint attribute provided. Please set endpoint attribute or assign a function to the endpoint property.',
                 -1
@@ -388,7 +377,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private async getUploadUrl(): Promise<string> {
-        const endpoint = this.apiEndpoint;
+        const endpoint = this._endpoint;
     
         // Check if it's a function and execute it
         if (typeof endpoint === 'function') {
