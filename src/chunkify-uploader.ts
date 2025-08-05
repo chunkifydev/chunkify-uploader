@@ -300,7 +300,7 @@ export class ChunkifyUploader extends HTMLElement {
         const uploadElement = uploadSlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.upload-button')!;
 
         uploadElement.addEventListener('click', () => {
-            if (!this.isUploading()) {
+            if (!this.hasAttribute('uploading')) {
                 this.fileInput.click();
             }
         });
@@ -314,7 +314,7 @@ export class ChunkifyUploader extends HTMLElement {
 
         this.uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            if (!this.isUploading()) {
+            if (!this.hasAttribute('uploading')) {
                 this.setAttribute('dragover', '');
             }
         });
@@ -327,7 +327,7 @@ export class ChunkifyUploader extends HTMLElement {
             e.preventDefault();
             this.removeAttribute('dragover');
 
-            if (!this.isUploading()) {
+            if (!this.hasAttribute('uploading')) {
                 const file = (e as DragEvent).dataTransfer?.files[0];
                 if (file) {
                     this.handleFile(file);
@@ -345,13 +345,7 @@ export class ChunkifyUploader extends HTMLElement {
         });
     }
 
-    private isUploading(): boolean {
-        return this.progressContainer.style.display === 'block';
-    }
-
     private resetState() {
-        console.log('resetState called');
-
         this.removeAttribute('dragover');
         this.removeAttribute('error');
         this.removeAttribute('success');
@@ -374,7 +368,7 @@ export class ChunkifyUploader extends HTMLElement {
     private async handleFile(file: File) {
         // Check endpoint early
         if (!this._endpoint) {
-            this.showError(
+            this.setError(
                 'No endpoint attribute provided. Please set endpoint attribute or assign a function to the endpoint property.',
                 -1
             );
@@ -384,7 +378,7 @@ export class ChunkifyUploader extends HTMLElement {
         // Check file size
         const maxSize = this.maxFileSize;
         if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
-            this.showError(
+            this.setError(
                 `File size exceeds the maximum allowed size of ${maxSize} MB`,
                 -2
             );
@@ -404,37 +398,19 @@ export class ChunkifyUploader extends HTMLElement {
         );
 
         try {
+            // Get URL fist
+            const uploadUrl = await this.getUploadUrl();
             this.showProgress();
-            await this.uploadFile(file);
-            this.showSuccess(file);
+            // Upload File
+            await this.uploadToUrl(file, uploadUrl);
+            this.setSuccess(file);
         } catch (error) {
             const errorMessage =(error as any).message || (error as Error).message;
             const statusCode = (error as any).status;
-            this.showError(errorMessage, statusCode);
+            this.setError(errorMessage, statusCode);
         }
     }
 
-    private showFileInfo(file: File) {
-        const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-        this.fileInfo.textContent = `Selected: ${file.name} (${sizeInMB} MB)`;
-        this.fileInfo.style.display = 'block';
-    }
-
-    private async uploadFile(file: File) {
-        const uploadUrl = await this.getUploadUrl();
-        // 1. Upload file
-        await this.uploadToUrl(file, uploadUrl);
-
-        // 2. Notify completion
-        this.dispatchEvent(
-            new CustomEvent('upload-complete', {
-                detail: {
-                    fileName: file.name,
-                    fileSize: file.size,
-                },
-            })
-        );
-    }
 
     private async getUploadUrl(): Promise<string> {
         const endpoint = this._endpoint;
@@ -507,8 +483,6 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private showProgress() {
-        this.removeAttribute('error');
-        this.removeAttribute('success');
         this.setAttribute('uploading', '');
 
         if (this.currentFile) {
@@ -517,9 +491,7 @@ export class ChunkifyUploader extends HTMLElement {
         }
     }
 
-    private showSuccess(file: File) {
-        this.removeAttribute('error');
-        this.removeAttribute('uploading');
+    private setSuccess(file: File) {
         this.setAttribute('success', '');
 
         // Check if user provided custom content
@@ -538,10 +510,9 @@ export class ChunkifyUploader extends HTMLElement {
         );
     }
 
-    private showError(message: string, statusCode?: number) {
-        this.removeAttribute('success');
-        this.removeAttribute('uploading');
+    private setError(message: string, statusCode?: number) {
         this.setAttribute('error', '');
+        this.removeAttribute('uploading');
 
         console.log('statusCode', statusCode);
         // If statusCode is -1, it means the endpoint is not set so return early with the message.
