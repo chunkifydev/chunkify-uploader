@@ -72,7 +72,7 @@ export class ChunkifyUploader extends HTMLElement {
             :host {
                 display: block;
                 width: 100%;
-                height: 100%;
+                height: 150px;
                 border: 2px dashed #ccc;
                 padding: 20px;
                 text-align: center;
@@ -108,7 +108,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
             
             /* Hide other elements by default */
-            .progress-container, .file-info, .error-container, .success-container {
+            .progress-container, .file-info, .error-container, .success-container, .retry-button {
                 display: none;
             }
 
@@ -121,7 +121,13 @@ export class ChunkifyUploader extends HTMLElement {
                 display: none;
             }
 
-            :host([error]) .error-container,
+            :host([error]) .error-container {
+                display: flex;
+                text-align: center;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+            }
             
             /* Show retry container only if NOT no-retry */
             :host([error]:not([no-retry])) .retry-button {
@@ -137,7 +143,11 @@ export class ChunkifyUploader extends HTMLElement {
             }
 
             :host([success]) .success-container {
-                display: block;
+                display: flex;
+                text-align: center;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
             }
 
             /* Uploading state */
@@ -235,14 +245,6 @@ export class ChunkifyUploader extends HTMLElement {
                 font-size: var(--error-message-font-size, inherit);
                 }
 
-            .error-container {
-                text-align:center;
-            }
-
-            .success-container {
-                text-align:center;
-            }
-            
             .file-info {
               margin-top: var(--file-info-margin-top, 10px); 
               font-size: var(--file-info-font-size, 16px);
@@ -445,7 +447,7 @@ export class ChunkifyUploader extends HTMLElement {
 
             xhr.onerror = () =>
                 reject({
-                    message: 'Network error during upload',
+                    message: 'Network error during upload: ' + xhr.status,
                     status: xhr.status,
                 });
             xhr.ontimeout = () =>
