@@ -8,25 +8,43 @@
 <body> 
     <!-- Your component with your endpoint -->
      
-    <chunkify-uploader api-endpoint="http://localhost:8787/ap/upload">
-        <button slot="upload-button" class="my-upload-btn">Upload Video</button>
+    <chunkify-uploader max-file-size="300" no-retry>
+        <div slot="title">Upload a video or audio file</div>
+        <div slot="upload-button" class="my-upload-btn">Upload</div>
+        <div slot="error-message" class="my-error">File upload failed.</div>
+        <div slot="success-message" class="my-success">File uploaded successfully.</div>
     </chunkify-uploader>
 
     <style>
         chunkify-uploader {
-            --progress-bar-color: #ff6b6b;
-            width: 30%;
-            margin: 100px auto;
+            width: 40%;
+            margin: 0 auto;
+            border: 1px solid #ccc;
         }
+
         .my-upload-btn {
-          background: #ff6b6b;
+          background: lightblue;
           color: white;
           border: none;
           padding: 12px 24px;
           border-radius: 8px;
           cursor: pointer;
           font-size: 16px;
+          margin-top: 20px;
         }
+
+        .my-upload-btn:hover {
+          background: blue;
+        }
+
+        .my-error {
+            color: hotpink; 
+        }
+
+        .my-success {
+            color: green;
+        }
+
     </style>
     
     <!-- Event listeners to see what's happening -->
@@ -37,6 +55,24 @@
         
         const uploader = document.querySelector('chunkify-uploader');
         const logs = document.getElementById('logs');
+        const errorText = document.getElementById('errortxt');
+
+        uploader.endpoint = function () {
+        return fetch("https://localhost:8787/api/upload")
+            .then(res => {
+                if (!res.ok) {
+                    throw { message: `HTTP ${res.status}: ${res.statusText}`, status: res.status };
+                }
+                return res.text();
+            })
+            .catch(error => {
+                if (error.status) {
+                    throw error; // Keep the original status
+                }
+                // Network errors don't have status, so default to 0
+                throw { message: error.message, status: 0 };
+            });
+        }
         
         // Listen for events
         uploader.addEventListener('upload-progress', (e) => {
@@ -50,8 +86,13 @@
         });
         
         uploader.addEventListener('upload-error', (e) => {
-            console.error('Upload error:', e.detail.error);
+            console.error('Upload error:', e.detail.error + ' and status code: ' + e.detail.status);
             logs.innerHTML += `<p>❌ Error: ${e.detail.error}</p>`;
+            
+          // if (e.detail.status !== undefined) {errorText.textContent = e.detail.status;}
+          if (e.detail.status === 404) {errorText.textContent = "Upload URL not found";}
+          if (e.detail.status === 0) {errorText.textContent = "Network error during upload";}
+            
         });
     </script>
 </body>

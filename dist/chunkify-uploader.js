@@ -1,38 +1,50 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 export class ChunkifyUploader extends HTMLElement {
     constructor() {
         super();
         this.currentFile = null;
         this.attachShadow({ mode: 'open' });
-        this.apiEndpoint = this.getAttribute('api-endpoint') || '/api/upload';
+        this._endpoint = this.getAttribute('endpoint') || '';
     }
     connectedCallback() {
         this.render();
+        this.cacheElements();
         this.setupEventListeners();
     }
-    // Helper method to get default or slot buttons
-    // Helper method to get default or slot buttons
-    getButton(buttonType) {
-        const slotName = buttonType === 'upload' ? 'upload-button' : 'retry-button';
-        const className = buttonType === 'upload' ? '.upload-button' : '.retry-button';
-        // Check if slot has content
-        const slot = this.shadowRoot.querySelector(`slot[name="${slotName}"]`);
-        const hasSlottedContent = slot && slot.assignedNodes().length > 0;
-        if (hasSlottedContent) {
-            // Return the slotted element
-            return slot.assignedNodes()[0];
+    cacheElements() {
+        this.uploadArea = this.shadowRoot.querySelector('.upload-area');
+        this.fileInput = this.shadowRoot.querySelector('input[type="file"]');
+        this.progressContainer = this.shadowRoot.querySelector('.progress-container');
+        this.progressBar = this.shadowRoot.querySelector('.progress-bar');
+        this.progressText = this.shadowRoot.querySelector('.progress-text');
+        this.errorMessage = this.shadowRoot.querySelector('slot[name="error-message"]');
+        this.successMessage = this.shadowRoot.querySelector('slot[name="success-message"]');
+        this.fileInfo = this.shadowRoot.querySelector('.file-info');
+        this.errorContainer = this.shadowRoot.querySelector('.error-container');
+    }
+    get endpoint() {
+        return this.getAttribute('endpoint') ?? this._endpoint;
+    }
+    set endpoint(value) {
+        if (value === this._endpoint)
+            return;
+        if (typeof value === 'string') {
+            this.setAttribute('endpoint', value);
+        }
+        else if (value == undefined) {
+            this.removeAttribute('endpoint');
+        }
+        this._endpoint = value;
+    }
+    get maxFileSize() {
+        const value = this.getAttribute('max-file-size');
+        return value ? parseInt(value, 10) : 0; // 0 means no limit
+    }
+    set maxFileSize(value) {
+        if (value > 0) {
+            this.setAttribute('max-file-size', value.toString());
         }
         else {
-            // Return the default button
-            return this.shadowRoot.querySelector(className);
+            this.removeAttribute('max-file-size');
         }
     }
     render() {
@@ -41,7 +53,7 @@ export class ChunkifyUploader extends HTMLElement {
             :host {
                 display: block;
                 width: 100%;
-                height: 100%;
+                height: 150px;
                 border: 2px dashed #ccc;
                 padding: 20px;
                 text-align: center;
@@ -66,6 +78,71 @@ export class ChunkifyUploader extends HTMLElement {
                 border-color: #28a745;
                 background: #f8fff9;
             }
+
+            /* Default state  */
+            .upload-button, slot[name="upload-button"] {
+                display: inline-block;
+            }
+
+            .title, slot[name="title"] {
+                display: block;
+            }
+            
+            /* Hide other elements by default */
+            .progress-container, .file-info, .error-container, .success-container, .retry-button {
+                display: none;
+            }
+
+            /* Error state */
+            :host([error]) .upload-button,
+            :host([error]) slot[name="upload-button"],
+            :host([error]) .title,
+            :host([error]) slot[name="title"],
+            :host([error]) .file-info {
+                display: none;
+            }
+
+            :host([error]) .error-container {
+                display: flex;
+                text-align: center;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+            }
+            
+            /* Show retry container only if NOT no-retry */
+            :host([error]:not([no-retry])) .retry-button {
+                display: block;
+            }
+
+            /* Success state */
+            :host([success]) .upload-button,
+            :host([success]) slot[name="upload-button"],
+            :host([success]) .title,
+            :host([success]) slot[name="title"] {
+                display: none;
+            }
+
+            :host([success]) .success-container {
+                display: flex;
+                text-align: center;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+            }
+
+            /* Uploading state */
+            :host([uploading]) .upload-button,
+            :host([uploading]) slot[name="upload-button"],
+            :host([uploading]) .title,
+            :host([uploading]) slot[name="title"] {
+                display: none;
+            }
+
+            :host([uploading]) .progress-container,
+            :host([uploading]:not([no-file-info])) .file-info {
+                display: block;
+            }
             
             .upload-button {
               background: #16a249;
@@ -75,16 +152,10 @@ export class ChunkifyUploader extends HTMLElement {
               border-radius: 4px;
               cursor: pointer;
               font-size: 16px;
-              margin: 10px auto;
-              display: inline-block;
+              margin: 20px auto;
               transition: background-color 0.3s ease;
             }
-
-            slot[name="upload-button"] {
-                margin: 10px auto;
-                display: inline-block;
-                }
-            
+ 
             .upload-button:hover {
               background: #01913f;
             }
@@ -94,12 +165,17 @@ export class ChunkifyUploader extends HTMLElement {
               cursor: not-allowed;
             }
             
-            .progress {
+            .progress-container {
               width: 100%;
+              margin-top: 15px;
+            }
+            
+            .progress-bar-background {
+              width: 80%;
               height: 6px;
               background-color: #e9ecef;
               border-radius: 3px;
-              margin-top: 15px;
+              margin: 0 auto;
             }
             
             .progress-bar {
@@ -109,290 +185,274 @@ export class ChunkifyUploader extends HTMLElement {
               transition: width 0.3s;
               width: 0%;
             }
-            
+
+            .progress-text {
+              text-align: center;
+              margin-bottom: 8px;
+              font-size: var(--progress-text-font-size, 14px);
+              color: var(--progress-text-color, #666);
+              font-weight: var(--progress-text-font-weight, 500);
+            }
+        
             .retry-button {
               background: #dc3545;
               color: white;
               border: none;
-              padding: 8px 16px;
+              padding: 10px 20px;
               border-radius: 4px;
               cursor: pointer;
-              margin: 10px auto;
-              display: inline-block;
-              font-size: 14px;
+              margin: 20px auto;
+              font-size: 16px;
             }
             
             .retry-button:hover {
               background: #c82333;
             }
 
-            slot[name="retry-button"] {
-                margin: 10px auto;
-                display: inline-block;
+            slot[name="title"] {
+                font-size: var(--title-font-size, 16px);
+                font-weight: var(--title-font-weight,semibold);
             }
             
-            .success-message {
+            slot[name="success-message"] {
                 color: var(--success-message-color, #28a745);
-                margin-top: 10px;
                 font-weight: var(--success-message-font-weight, bold);
                 font-size: var(--success-message-font-size, inherit);
-                text-align: center;
                 }
 
-            .error-message {
+            slot[name="error-message"] {
                 color: var(--error-message-color, #dc3545);
-                margin-top: 10px;
                 font-weight: var(--error-message-font-weight, bold);
                 font-size: var(--error-message-font-size, inherit);
-                text-align: center;
                 }
-            
+
             .file-info {
-              margin-top: 10px;
-              font-size: 14px;
-              color: #666;
+              margin-top: var(--file-info-margin-top, 10px); 
+              font-size: var(--file-info-font-size, 16px);
+              color: var(--file-info-color, #666);
             }
           </style>
           
           <div class="upload-area">
-            <input type="file" accept="video/*" style="display: none;">
+            <input type="file" accept="video/*,audio/*" style="display: none;">
             <slot name="title">
-                <p>Drop video file here or click the button below</p>
+                <div class="title">Drop video file here or click the button below</div>
             </slot>
             <!-- Slot for custom upload button -->
             <slot name="upload-button">
                 <button class="upload-button">Upload Video</button>
             </slot>
-            <div class="file-info" style="display: none;"></div>
-            <div class="progress" style="display: none;">
-              <div class="progress-bar"></div>
+            <div class="file-info"></div>
+            <div class="progress-container">
+              <div class="progress-text">0%</div>
+              <div class="progress-bar-background">
+                <div class="progress-bar"></div>
+                </div>
             </div>
             <!-- Slot for custom retry button -->
-            <slot name="retry-button">
-                <button class="retry-button" style="display: none;">Try Again</button>
-            </slot>
-            <div class="error-message" style="display: none;"></div>
-            <div class="success-message" style="display: none;"></div>
+            <div class="error-container">
+                <slot name="error-message">
+                </slot>
+                <slot name="retry-button">
+                    <button class="retry-button">Try Again</button>
+                </slot>
+            </div>
+            <div class="success-container">
+                <slot name="success-message">
+                </slot>
+            </div>
           </div>
         `;
     }
     setupEventListeners() {
-        const uploadArea = this.shadowRoot.querySelector('.upload-area');
-        const fileInput = this.shadowRoot.querySelector('input[type="file"]');
-        const uploadButton = this.getButton('upload');
-        const retryButton = this.getButton('retry');
-        uploadButton.addEventListener('click', () => {
-            if (!this.isUploading()) {
-                fileInput.click();
+        const uploadSlot = this.shadowRoot.querySelector('slot[name="upload-button"]');
+        const uploadElement = uploadSlot.assignedNodes()[0] || this.shadowRoot.querySelector('.upload-button');
+        uploadElement.addEventListener('click', () => {
+            if (!this.hasAttribute('uploading')) {
+                this.fileInput.click();
             }
         });
-        fileInput.addEventListener('change', (e) => {
-            var _a;
-            const file = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0];
+        this.fileInput.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
             if (file) {
                 this.handleFile(file);
             }
         });
-        uploadArea.addEventListener('dragover', (e) => {
+        this.uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            if (!this.isUploading()) {
+            if (!this.hasAttribute('uploading')) {
                 this.setAttribute('dragover', '');
             }
         });
-        uploadArea.addEventListener('dragleave', () => {
+        this.uploadArea.addEventListener('dragleave', () => {
             this.removeAttribute('dragover');
         });
-        uploadArea.addEventListener('drop', (e) => {
-            var _a;
+        this.uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             this.removeAttribute('dragover');
-            if (!this.isUploading()) {
-                const file = (_a = e.dataTransfer) === null || _a === void 0 ? void 0 : _a.files[0];
+            if (!this.hasAttribute('uploading')) {
+                const file = e.dataTransfer?.files[0];
                 if (file) {
                     this.handleFile(file);
                 }
             }
         });
-        retryButton.addEventListener('click', (e) => {
+        const retrySlot = this.shadowRoot.querySelector('slot[name="retry-button"]');
+        const retryElement = retrySlot.assignedNodes()[0] || this.shadowRoot.querySelector('.retry-button');
+        retryElement.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.resetState();
         });
     }
-    isUploading() {
-        const progress = this.shadowRoot.querySelector('.progress');
-        return progress.style.display === 'block';
-    }
     resetState() {
-        console.log('resetState called');
-        const uploadArea = this.shadowRoot.querySelector('.upload-area');
-        const progress = this.shadowRoot.querySelector('.progress');
-        const error = this.shadowRoot.querySelector('.error-message');
-        const success = this.shadowRoot.querySelector('.success-message');
-        const fileInfo = this.shadowRoot.querySelector('.file-info');
-        // Get buttons from slots or fallback to default
-        const uploadButton = this.getButton('upload');
-        const retryButton = this.getButton('retry');
         this.removeAttribute('dragover');
         this.removeAttribute('error');
         this.removeAttribute('success');
-        progress.style.display = 'none';
-        error.style.display = 'none';
-        success.style.display = 'none';
-        fileInfo.style.display = 'none';
-        uploadButton.style.display = 'block';
-        retryButton.style.display = 'none';
-        uploadArea.style.display = 'block';
+        this.removeAttribute('uploading');
         // Reset progress bar
-        const progressBar = this.shadowRoot.querySelector('.progress-bar');
-        progressBar.style.width = '0%';
+        this.progressBar.style.width = '0%';
+        this.progressText.textContent = '0%';
         // Clear error message
-        const errorMessage = this.shadowRoot.querySelector('.error-message');
-        errorMessage.textContent = '';
+        this.errorMessage.textContent = '';
         // Reset file input
-        const fileInput = this.shadowRoot.querySelector('input[type="file"]');
-        fileInput.value = '';
+        this.fileInput.value = '';
         // Clear current file
         this.currentFile = null;
     }
-    handleFile(file) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.currentFile = file;
-            this.showFileInfo(file);
+    async handleFile(file) {
+        // Check endpoint early
+        if (!this._endpoint) {
+            this.setError('No endpoint attribute provided. Please set endpoint attribute or assign a function to the endpoint property.', -1);
+            return;
+        }
+        // Check file size
+        const maxSize = this.maxFileSize;
+        if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
+            this.setError(`File size exceeds the maximum allowed size of ${maxSize} MB`, -2);
+            return;
+        }
+        this.currentFile = file;
+        // Dispatch file selected event immediately
+        this.dispatchEvent(new CustomEvent('file-selected', {
+            detail: {
+                fileName: file.name,
+                fileSize: file.size,
+            },
+        }));
+        try {
+            // Get URL fist
+            const uploadUrl = await this.getUploadUrl();
+            this.showProgress();
+            // Upload File
+            await this.uploadToUrl(file, uploadUrl);
+            this.setSuccess(file);
+        }
+        catch (error) {
+            const errorMessage = error.message || error.message;
+            const statusCode = error.status;
+            this.setError(errorMessage, statusCode);
+        }
+    }
+    async getUploadUrl() {
+        const endpoint = this._endpoint;
+        // Check if it's a function and execute it
+        if (typeof endpoint === 'function') {
             try {
-                this.showProgress();
-                yield this.uploadFile(file);
-                this.showSuccess(file);
+                return await endpoint();
             }
             catch (error) {
-                this.showError(error.message);
+                // If the error has a status, pass it through
+                if (error && typeof error === 'object' && 'status' in error) {
+                    console.log('error with status', error);
+                    throw error;
+                }
+                // Otherwise, add status 0 for network errors
+                throw { message: error.message, status: 0 };
             }
-        });
+        }
+        else {
+            // Use as direct URL
+            return endpoint;
+        }
     }
-    showFileInfo(file) {
-        const fileInfo = this.shadowRoot.querySelector('.file-info');
-        const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-        fileInfo.textContent = `Selected: ${file.name} (${sizeInMB} MB)`;
-        fileInfo.style.display = 'block';
-    }
-    uploadFile(file) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // 1. Get upload URL from user's API
-            const uploadData = yield this.getUploadUrl();
-            // 2. Upload file using your code
-            yield this.uploadToUrl(file, uploadData.upload_url);
-            // 3. Notify completion
-            this.dispatchEvent(new CustomEvent('upload-complete', {
-                detail: {
-                    fileName: file.name,
-                    fileSize: file.size,
-                },
-            }));
-        });
-    }
-    getUploadUrl() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield fetch(this.apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+    async uploadToUrl(file, uploadUrl) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    this.updateProgress(percentComplete);
+                }
+            };
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    resolve(xhr.response);
+                }
+                else {
+                    reject({
+                        message: `Upload failed with status: ${xhr.status}`,
+                        status: xhr.status,
+                    });
+                }
+            };
+            xhr.onerror = () => reject({
+                message: 'Network error during upload: ' + xhr.status,
+                status: xhr.status,
             });
-            if (!response.ok) {
-                const errorText = yield response.text();
-                throw new Error(`Error: server responded with ${response.status} - ${errorText}`);
-            }
-            return response.json();
-        });
-    }
-    uploadToUrl(file, uploadUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.upload.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                        const percentComplete = (event.loaded / event.total) * 100;
-                        this.updateProgress(percentComplete);
-                    }
-                };
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        resolve(xhr.response);
-                    }
-                    else {
-                        reject(new Error(`Upload failed with status: ${xhr.status}`));
-                    }
-                };
-                xhr.onerror = () => reject(new Error('Network error during upload'));
-                xhr.ontimeout = () => reject(new Error('Upload timed out'));
-                xhr.open('PUT', uploadUrl);
-                xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-                xhr.timeout = 30000; // 30 second timeout
-                xhr.send(file);
-            });
+            xhr.ontimeout = () => reject({ message: 'Upload timed out', status: xhr.status });
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+            xhr.timeout = 30000; // 30 second timeout
+            xhr.send(file);
         });
     }
     updateProgress(percent) {
-        const progressBar = this.shadowRoot.querySelector('.progress-bar');
-        if (progressBar) {
-            progressBar.style.width = `${percent}%`;
-        }
+        this.progressBar.style.width = `${percent}%`;
+        this.progressText.textContent = `${Math.round(percent)}%`;
         this.dispatchEvent(new CustomEvent('upload-progress', {
             detail: { progress: percent },
         }));
     }
     showProgress() {
-        const uploadArea = this.shadowRoot.querySelector('.upload-area');
-        const progress = this.shadowRoot.querySelector('.progress');
-        const error = this.shadowRoot.querySelector('.error-message');
-        const success = this.shadowRoot.querySelector('.success-message');
-        const uploadButton = this.getButton('upload');
-        const retryButton = this.getButton('retry');
-        const fileInfo = this.shadowRoot.querySelector('.file-info');
-        this.removeAttribute('error');
-        this.removeAttribute('success');
-        progress.style.display = 'block';
-        fileInfo.style.display = 'block';
-        error.style.display = 'none';
-        success.style.display = 'none';
-        uploadButton.style.display = 'none';
-        retryButton.style.display = 'none';
+        this.setAttribute('uploading', '');
         if (this.currentFile) {
-            fileInfo.textContent = `Uploading: ${this.currentFile.name}`;
+            const sizeInMB = (this.currentFile.size / (1024 * 1024)).toFixed(2);
+            this.fileInfo.textContent = `Uploading: ${this.currentFile.name} (${sizeInMB} MB)`;
         }
     }
-    showSuccess(file) {
-        const uploadArea = this.shadowRoot.querySelector('.upload-area');
-        const progress = this.shadowRoot.querySelector('.progress');
-        const success = this.shadowRoot.querySelector('.success-message');
-        const fileInfo = this.shadowRoot.querySelector('.file-info');
-        const uploadButton = this.getButton('upload');
+    setSuccess(file) {
+        this.removeAttribute('uploading');
         this.setAttribute('success', '');
-        progress.style.display = 'none';
-        success.style.display = 'block';
-        uploadButton.style.display = 'none';
-        fileInfo.style.display = 'none';
-        success.textContent = `✅ ${file.name} uploaded successfully!`;
+        // Check if user provided custom content
+        const hasCustomContent = this.successMessage &&
+            this.successMessage.assignedNodes().length > 0;
+        if (!hasCustomContent) {
+            this.successMessage.textContent = `${file.name} uploaded successfully!`;
+        }
         this.dispatchEvent(new CustomEvent('upload-success', {
             detail: { fileName: file.name },
         }));
     }
-    showError(message) {
-        const uploadArea = this.shadowRoot.querySelector('.upload-area');
-        const progress = this.shadowRoot.querySelector('.progress');
-        const error = this.shadowRoot.querySelector('.error-message');
-        const fileInfo = this.shadowRoot.querySelector('.file-info');
-        const uploadButton = this.getButton('upload');
-        const retryButton = this.getButton('retry');
+    setError(message, statusCode) {
         this.setAttribute('error', '');
-        progress.style.display = 'none';
-        fileInfo.style.display = 'none';
-        error.style.display = 'block';
-        uploadButton.style.display = 'none';
-        retryButton.style.display = 'block';
-        error.textContent = message;
+        this.removeAttribute('uploading');
+        console.log('statusCode', statusCode);
+        // If statusCode is -1, it means the endpoint is not set so return early with the message.
+        if (statusCode === -1) {
+            this.errorContainer.innerHTML = message;
+            return;
+        }
+        // Check if user provided custom content
+        const hasCustomContent = this.errorMessage && this.errorMessage.assignedNodes().length > 0;
+        if (!hasCustomContent) {
+            this.errorMessage.textContent = message;
+        }
         this.dispatchEvent(new CustomEvent('upload-error', {
-            detail: { error: message },
+            detail: {
+                error: message,
+                status: statusCode,
+            },
         }));
     }
 }

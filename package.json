@@ -1,15 +1,37 @@
 {
-  "devDependencies": {
-    "typescript": "^5.8.3"
-  },
   "name": "chunkify-uploader",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "A file upload web component with React wrapper",
+  "main": "./dist/chunkify-uploader.js",
+  "module": "./dist/chunkify-uploader.js",
+  "exports": {
+    ".": "./dist/chunkify-uploader.js",
+    "./react": "./dist/react/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
+    "build": "tsc",
+    "build:react": "tsc --project tsconfig.react.json",
+    "build:all": "npm run build && npm run build:react",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "upload",
+    "file",
+    "web-component",
+    "react"
+  ],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "typescript": "^5.8.3"
+  }
 }

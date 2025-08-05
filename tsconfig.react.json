@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "jsx": "react-jsx",
+      "outDir": "./dist/react",
+      "rootDir": "./src/react",
+      "declaration": true,
+      "declarationMap": true
+    },
+    "include": [
+      "src/react/**/*"
+    ],
+    "exclude": [
+      "src/chunkify-uploader.ts"
+    ]
+  }
