@@ -108,7 +108,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
             
             /* Hide other elements by default */
-            .progress-container, .file-info, .error-container, .success-container, .retry-container {
+            .progress-container, .file-info, .error-container, .success-container {
                 display: none;
             }
 
@@ -124,7 +124,7 @@ export class ChunkifyUploader extends HTMLElement {
             :host([error]) .error-container,
             
             /* Show retry container only if NOT no-retry */
-            :host([error]:not([no-retry])) .retry-container {
+            :host([error]:not([no-retry])) .retry-button {
                 display: block;
             }
 
@@ -161,14 +161,10 @@ export class ChunkifyUploader extends HTMLElement {
               border-radius: 4px;
               cursor: pointer;
               font-size: 16px;
-              margin: 10px auto;
+              margin: 20px auto;
               transition: background-color 0.3s ease;
             }
-
-            slot[name="upload-button"] {
-                margin: 10px auto;
-                }
-            
+ 
             .upload-button:hover {
               background: #01913f;
             }
@@ -211,25 +207,20 @@ export class ChunkifyUploader extends HTMLElement {
               background: #dc3545;
               color: white;
               border: none;
-              padding: 8px 16px;
+              padding: 10px 20px;
               border-radius: 4px;
               cursor: pointer;
-              margin: 10px auto;
-              font-size: 14px;
+              margin: 20px auto;
+              font-size: 16px;
             }
             
             .retry-button:hover {
               background: #c82333;
             }
 
-            slot[name="retry-button"] {
-                margin: 10px auto;
-            }
-
             slot[name="title"] {
                 font-size: var(--title-font-size, 16px);
                 font-weight: var(--title-font-weight,semibold);
-        
             }
             
             slot[name="success-message"] {
@@ -245,18 +236,16 @@ export class ChunkifyUploader extends HTMLElement {
                 }
 
             .error-container {
-                margin-top: var(--error-margin-top, 10px);
                 text-align:center;
             }
 
             .success-container {
-                margin-top: var(--success-margin-top, 10px);
                 text-align:center;
             }
             
             .file-info {
               margin-top: var(--file-info-margin-top, 10px); 
-              font-size: var(--file-info-font-size, 14px);
+              font-size: var(--file-info-font-size, 16px);
               color: var(--file-info-color, #666);
             }
           </style>
@@ -264,7 +253,7 @@ export class ChunkifyUploader extends HTMLElement {
           <div class="upload-area">
             <input type="file" accept="video/*,audio/*" style="display: none;">
             <slot name="title">
-                <p class="title">Drop video file here or click the button below</p>
+                <div class="title">Drop video file here or click the button below</div>
             </slot>
             <!-- Slot for custom upload button -->
             <slot name="upload-button">
@@ -278,13 +267,11 @@ export class ChunkifyUploader extends HTMLElement {
                 </div>
             </div>
             <!-- Slot for custom retry button -->
-            <div class="retry-container">
-                <slot name="retry-button">
-                    <button class="retry-button">Try Again</button>
-                </slot>
-            </div>
             <div class="error-container">
                 <slot name="error-message">
+                </slot>
+                <slot name="retry-button">
+                    <button class="retry-button">Try Again</button>
                 </slot>
             </div>
             <div class="success-container">
@@ -492,6 +479,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private setSuccess(file: File) {
+        this.removeAttribute('uploading');
         this.setAttribute('success', '');
 
         // Check if user provided custom content
