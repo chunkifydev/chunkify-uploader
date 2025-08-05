@@ -3,19 +3,14 @@ export class ChunkifyUploader extends HTMLElement {
     private currentFile: File | null = null;
 
     private uploadArea!: HTMLElement;
-    private titleText!: HTMLSlotElement;
     private fileInput!: HTMLInputElement;
-    private progress!: HTMLElement;
+    private progressContainer!: HTMLElement;
     private progressBar!: HTMLElement;
     private progressText!: HTMLElement;
     private errorMessage!: HTMLSlotElement;
     private successMessage!: HTMLSlotElement;
     private fileInfo!: HTMLElement;
-    private uploadButton!: HTMLSlotElement;
-    private retryButton!: HTMLSlotElement;
-    private retryContainer!: HTMLElement;
     private errorContainer!: HTMLElement;
-    private successContainer!: HTMLElement;
 
     constructor() {
         super();
@@ -30,9 +25,8 @@ export class ChunkifyUploader extends HTMLElement {
     }
     private cacheElements() {
         this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
-        this.titleText = this.shadowRoot!.querySelector('slot[name="title"]')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
-        this.progress = this.shadowRoot!.querySelector('.progress')!;
+        this.progressContainer = this.shadowRoot!.querySelector('.progress-container')!;
         this.progressBar = this.shadowRoot!.querySelector('.progress-bar')!;
         this.progressText = this.shadowRoot!.querySelector('.progress-text')!;
         this.errorMessage = this.shadowRoot!.querySelector(
@@ -42,14 +36,7 @@ export class ChunkifyUploader extends HTMLElement {
             'slot[name="success-message"]'
         ) as HTMLSlotElement;
         this.fileInfo = this.shadowRoot!.querySelector('.file-info')!;
-        this.uploadButton = this.shadowRoot!.querySelector('slot[name="upload-button"]')!;
-        this.retryButton = this.shadowRoot!.querySelector('slot[name="retry-button"]')!;
-        this.retryContainer =
-            this.shadowRoot!.querySelector('.retry-container')!;
-        this.errorContainer =
-            this.shadowRoot!.querySelector('.error-container')!;
-        this.successContainer =
-            this.shadowRoot!.querySelector('.success-container')!;
+        this.errorContainer = this.shadowRoot!.querySelector('.error-container')!;
     }
 
     get endpoint(): string | (() => Promise<string>) {
@@ -119,10 +106,9 @@ export class ChunkifyUploader extends HTMLElement {
             .title, slot[name="title"] {
                 display: block;
             }
-
             
             /* Hide other elements by default */
-            .progress, .file-info, .error-container, .success-container, .retry-container {
+            .progress-container, .file-info, .error-container, .success-container, .retry-container {
                 display: none;
             }
 
@@ -162,8 +148,8 @@ export class ChunkifyUploader extends HTMLElement {
                 display: none;
             }
 
-            :host([uploading]) .progress,
-            :host([uploading]) .file-info {
+            :host([uploading]) .progress-container,
+            :host([uploading]:not([no-file-info])) .file-info {
                 display: block;
             }
             
@@ -192,12 +178,12 @@ export class ChunkifyUploader extends HTMLElement {
               cursor: not-allowed;
             }
             
-            .progress {
+            .progress-container {
               width: 100%;
               margin-top: 15px;
             }
             
-            .progress-background {
+            .progress-bar-background {
               width: 80%;
               height: 6px;
               background-color: #e9ecef;
@@ -269,9 +255,9 @@ export class ChunkifyUploader extends HTMLElement {
             }
             
             .file-info {
-              margin-top: 10px;
-              font-size: 14px;
-              color: #666;
+              margin-top: var(--file-info-margin-top, 10px); 
+              font-size: var(--file-info-font-size, 14px);
+              color: var(--file-info-color, #666);
             }
           </style>
           
@@ -285,9 +271,9 @@ export class ChunkifyUploader extends HTMLElement {
                 <button class="upload-button">Upload Video</button>
             </slot>
             <div class="file-info"></div>
-            <div class="progress">
+            <div class="progress-container">
               <div class="progress-text">0%</div>
-              <div class="progress-background">
+              <div class="progress-bar-background">
                 <div class="progress-bar"></div>
                 </div>
             </div>
@@ -360,7 +346,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private isUploading(): boolean {
-        return this.progress.style.display === 'block';
+        return this.progressContainer.style.display === 'block';
     }
 
     private resetState() {
@@ -407,6 +393,16 @@ export class ChunkifyUploader extends HTMLElement {
 
         this.currentFile = file;
 
+        // Dispatch file selected event immediately
+        this.dispatchEvent(
+            new CustomEvent('file-selected', {
+                detail: {
+                    fileName: file.name,
+                    fileSize: file.size,
+                },
+            })
+        );
+
         try {
             this.showProgress();
             await this.uploadFile(file);
@@ -426,7 +422,7 @@ export class ChunkifyUploader extends HTMLElement {
 
     private async uploadFile(file: File) {
         const uploadUrl = await this.getUploadUrl();
-        // 1. Upload file using your code
+        // 1. Upload file
         await this.uploadToUrl(file, uploadUrl);
 
         // 2. Notify completion
@@ -532,7 +528,7 @@ export class ChunkifyUploader extends HTMLElement {
             this.successMessage.assignedNodes().length > 0;
 
         if (!hasCustomContent) {
-            this.successMessage.textContent = `✅ ${file.name} uploaded successfully!`;
+            this.successMessage.textContent = `${file.name} uploaded successfully!`;
         }
 
         this.dispatchEvent(
@@ -546,11 +542,6 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('success');
         this.removeAttribute('uploading');
         this.setAttribute('error', '');
-
-        console.log('Error attribute set:', this.hasAttribute('error'));
-        console.log('Error container display:', this.errorContainer.style.display);
-        console.log('Error container computed style:', window.getComputedStyle(this.errorContainer).display);
-
 
         console.log('statusCode', statusCode);
         // If statusCode is -1, it means the endpoint is not set so return early with the message.
