@@ -1,6 +1,6 @@
 export class ChunkifyUploader extends HTMLElement {
     static get observedAttributes() {
-        return ['no-drag'];
+        return ['no-drop'];
     }
     private _endpoint: string | (() => Promise<string>);
     private currentFile: File | null = null;
@@ -98,12 +98,12 @@ export class ChunkifyUploader extends HTMLElement {
         this.toggleAttribute('no-file-info', Boolean(value));
     }
 
-    get noDrag(): boolean {
-        return this.hasAttribute('no-drag');
+    get noDrop(): boolean {
+        return this.hasAttribute('no-drop');
     }
     
-    set noDrag(value: boolean) {
-        this.toggleAttribute('no-drag', Boolean(value));
+    set noDrop(value: boolean) {
+        this.toggleAttribute('no-drop', Boolean(value));
     }
 
     private render() {
@@ -123,7 +123,7 @@ export class ChunkifyUploader extends HTMLElement {
                 box-sizing: border-box;
                 }
       
-            :host([dragover]:not([no-drag])) {
+            :host([dragover]:not([no-drop])) {
                 border-color:  #007bff;
                 background:rgb(214, 235, 251);
             }
@@ -224,7 +224,7 @@ export class ChunkifyUploader extends HTMLElement {
             .progress-bar-background {
               width: 80%;
               height: var(--progress-bar-height, 6px);
-              background-color: var(--progress-bar-background-color, #e9ecef);
+              background-color: var(--progress-bar-bgcolor, #e9ecef);
               border-radius: 3px;
               margin: 0 auto;
             }
@@ -238,6 +238,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
 
             .progress-text {
+              display: var(--progress-text-display, block);
               text-align: center;
               margin-bottom: 8px;
               font-size: var(--progress-text-font-size, 14px);
@@ -333,8 +334,7 @@ export class ChunkifyUploader extends HTMLElement {
         });
 
         // Only add drag listeners if no-drag is not set
-        if (!this.noDrag) {
-            console.log('adding drag listeners because drag is :', this.noDrag);
+        if (!this.noDrop) {
             this.uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (!this.hasAttribute('uploading')) {
@@ -459,6 +459,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private async uploadToUrl(file: File, uploadUrl: string) {
+        console.log('uploading to url', uploadUrl);
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
 

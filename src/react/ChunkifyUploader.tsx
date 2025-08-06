@@ -18,7 +18,7 @@ interface ChunkifyUploaderProps {
   maxFileSize?: number;
   noRetry?: boolean;
   noFileInfo?: boolean;
-  noDrag?: boolean;
+  noDrop?: boolean;
   
   // Event handlers
   onFileSelected?: (event: CustomEvent) => void;
@@ -51,10 +51,10 @@ export const ChunkifyUploader: FC<ChunkifyUploaderProps> = (props) => {
     if (props.noFileInfo !== undefined) {
       element.noFileInfo = props.noFileInfo;
     }
-    if (props.noDrag !== undefined) {
-      element.noDrag = props.noDrag;
+    if (props.noDrop !== undefined) {
+      element.noDrop = props.noDrop;
     }
-  }, [props.endpoint, props.maxFileSize, props.noRetry, props.noDrag, props.noFileInfo]);
+  }, [props.endpoint, props.maxFileSize, props.noRetry, props.noDrop, props.noFileInfo]);
 
   useEffect(() => {
     if (!ref.current) return;
