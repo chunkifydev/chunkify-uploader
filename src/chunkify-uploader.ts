@@ -1,4 +1,7 @@
 export class ChunkifyUploader extends HTMLElement {
+    static get observedAttributes() {
+        return ['no-drag'];
+    }
     private _endpoint: string | (() => Promise<string>);
     private currentFile: File | null = null;
 
@@ -22,6 +25,22 @@ export class ChunkifyUploader extends HTMLElement {
         this.cacheElements();
         this.setupEventListeners();
     }
+
+
+    attributeChangedCallback() {
+        this.updateLayout();
+    }
+
+    private updateLayout() {
+        // Clear everything
+        this.shadowRoot!.innerHTML = '';
+    
+        // Re-render everything
+        this.render();
+        this.cacheElements();
+        this.setupEventListeners();
+    }
+
     private cacheElements() {
         this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
@@ -315,6 +334,7 @@ export class ChunkifyUploader extends HTMLElement {
 
         // Only add drag listeners if no-drag is not set
         if (!this.noDrag) {
+            console.log('adding drag listeners because drag is :', this.noDrag);
             this.uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (!this.hasAttribute('uploading')) {
@@ -462,7 +482,7 @@ export class ChunkifyUploader extends HTMLElement {
 
             xhr.onerror = () =>
                 reject({
-                    message: 'Network error during upload: ' + xhr.status,
+                    message: 'Network error during upload',
                     status: xhr.status,
                 });
             xhr.ontimeout = () =>
