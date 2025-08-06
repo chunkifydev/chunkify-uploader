@@ -1,21 +1,35 @@
 {
   "name": "chunkify-uploader",
   "version": "1.0.0",
-  "description": "A file upload web component with React wrapper",
-  "main": "./dist/chunkify-uploader.js",
-  "module": "./dist/chunkify-uploader.js",
+  "description": "A file upload web component",
+  "main": "./dist/chunkify-uploader.cjs.js",
+  "module": "./dist/chunkify-uploader.mjs",
+  "browser": "./dist/chunkify-uploader.mjs",
+  "unpkg": "./dist/chunkify-uploader.js",
+  "jsdelivr": "./dist/chunkify-uploader.js",
+  "types": "./dist/types/chunkify-uploader.d.ts",
   "exports": {
-    ".": "./dist/chunkify-uploader.js",
-    "./react": "./dist/react/index.js"
+    ".": {
+      "import": "./dist/chunkify-uploader.mjs",
+      "require": "./dist/chunkify-uploader.cjs.js",
+      "default": "./dist/chunkify-uploader.cjs.js"
+    },
+    "./react": {
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.js",
+      "default": "./dist/react/index.js"
+    }
   },
   "files": [
     "dist/"
   ],
   "scripts": {
-    "build": "tsc",
+    "build:esm": "esbuild src/chunkify-uploader.ts --format=esm --outdir=dist --out-extension:.js=.mjs",
+    "build:cjs": "esbuild src/chunkify-uploader.ts --format=cjs --outdir=dist --out-extension:.js=.cjs.js",
+    "build:iife": "esbuild src/chunkify-uploader.ts --format=iife --outfile=./dist/chunkify-uploader.js",
     "build:react": "tsc --project tsconfig.react.json",
-    "build:all": "npm run build && npm run build:react",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
+    "build": "npm run build:esm && npm run build:cjs && npm run build:iife && npm run build:react && npm run build:types"
   },
   "keywords": [
     "upload",
@@ -32,6 +46,7 @@
   "devDependencies": {
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.25.8",
     "typescript": "^5.8.3"
   }
 }
