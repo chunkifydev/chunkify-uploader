@@ -4,7 +4,6 @@ export class ChunkifyUploader extends HTMLElement {
 
     private uploadArea!: HTMLElement;
     private fileInput!: HTMLInputElement;
-    private progressContainer!: HTMLElement;
     private progressBar!: HTMLElement;
     private progressText!: HTMLElement;
     private errorMessage!: HTMLSlotElement;
@@ -26,7 +25,6 @@ export class ChunkifyUploader extends HTMLElement {
     private cacheElements() {
         this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
-        this.progressContainer = this.shadowRoot!.querySelector('.progress-container')!;
         this.progressBar = this.shadowRoot!.querySelector('.progress-bar')!;
         this.progressText = this.shadowRoot!.querySelector('.progress-text')!;
         this.errorMessage = this.shadowRoot!.querySelector(
@@ -66,6 +64,21 @@ export class ChunkifyUploader extends HTMLElement {
         }
     }
 
+    get noRetry(): boolean {
+        return this.hasAttribute('no-retry');
+    }
+
+    set noRetry(value: boolean) {
+        this.toggleAttribute('no-retry', Boolean(value));
+    }
+
+    get noFileInfo(): boolean {
+        return this.hasAttribute('no-file-info');
+    }
+    set noFileInfo(value: boolean) {
+        this.toggleAttribute('no-file-info', Boolean(value));
+    }
+
     private render() {
         this.shadowRoot!.innerHTML = `
           <style>
@@ -85,7 +98,7 @@ export class ChunkifyUploader extends HTMLElement {
       
             :host([dragover]) {
                 border-color:  #007bff;
-                background:  #e3f2fd;
+                background:rgb(214, 235, 251);
             }
       
             :host([error]) {
@@ -122,11 +135,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
 
             :host([error]) .error-container {
-                display: flex;
-                text-align: center;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
+                display: block;
             }
             
             /* Show retry container only if NOT no-retry */
@@ -143,11 +152,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
 
             :host([success]) .success-container {
-                display: flex;
-                text-align: center;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
+                display: block;
             }
 
             /* Uploading state */
@@ -191,8 +196,8 @@ export class ChunkifyUploader extends HTMLElement {
             
             .progress-bar-background {
               width: 80%;
-              height: 6px;
-              background-color: #e9ecef;
+              height: var(--progress-bar-height, 6px);
+              background-color: var(--progress-bar-background-color, #e9ecef);
               border-radius: 3px;
               margin: 0 auto;
             }
@@ -268,7 +273,6 @@ export class ChunkifyUploader extends HTMLElement {
                 <div class="progress-bar"></div>
                 </div>
             </div>
-            <!-- Slot for custom retry button -->
             <div class="error-container">
                 <slot name="error-message">
                 </slot>
