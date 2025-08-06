@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, FC, ReactNode, CSSProperties } from 'react';
 
 // Auto-import the web component
-import '../../dist/chunkify-uploader.js';
+import 'chunkify-uploader';
 
 declare global {
   namespace JSX {
