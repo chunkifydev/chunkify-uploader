@@ -16,7 +16,6 @@ declare global {
 interface ChunkifyUploaderProps {
   endpoint?: string | (() => Promise<string>);
   maxFileSize?: number;
-  accept?: string;
   noRetry?: boolean;
   noFileInfo?: boolean;
   
@@ -45,22 +44,13 @@ export const ChunkifyUploader: FC<ChunkifyUploaderProps> = (props) => {
     // Set properties
     if (props.endpoint !== undefined) element.endpoint = props.endpoint;
     if (props.maxFileSize !== undefined) element.maxFileSize = props.maxFileSize;
-    if (props.accept !== undefined) element.accept = props.accept;
     if (props.noRetry !== undefined) {
-      if (props.noRetry) {
-        element.setAttribute('no-retry', '');
-      } else {
-        element.removeAttribute('no-retry');
-      }
+      element.noRetry = props.noRetry;
     }
     if (props.noFileInfo !== undefined) {
-      if (props.noFileInfo) {
-        element.setAttribute('no-file-info', '');
-      } else {
-        element.removeAttribute('no-file-info');
-      }
+      element.noFileInfo = props.noFileInfo;
     }
-  }, [props.endpoint, props.maxFileSize, props.accept, props.noRetry, props.noFileInfo]);
+  }, [props.endpoint, props.maxFileSize, props.noRetry, props.noFileInfo]);
 
   useEffect(() => {
     if (!ref.current) return;
