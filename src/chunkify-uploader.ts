@@ -79,6 +79,14 @@ export class ChunkifyUploader extends HTMLElement {
         this.toggleAttribute('no-file-info', Boolean(value));
     }
 
+    get noDrag(): boolean {
+        return this.hasAttribute('no-drag');
+    }
+    
+    set noDrag(value: boolean) {
+        this.toggleAttribute('no-drag', Boolean(value));
+    }
+
     private render() {
         this.shadowRoot!.innerHTML = `
           <style>
@@ -96,7 +104,7 @@ export class ChunkifyUploader extends HTMLElement {
                 box-sizing: border-box;
                 }
       
-            :host([dragover]) {
+            :host([dragover]:not([no-drag])) {
                 border-color:  #007bff;
                 background:rgb(214, 235, 251);
             }
@@ -305,28 +313,31 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
-        this.uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            if (!this.hasAttribute('uploading')) {
-                this.setAttribute('dragover', '');
-            }
-        });
-
-        this.uploadArea.addEventListener('dragleave', () => {
-            this.removeAttribute('dragover');
-        });
-
-        this.uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            this.removeAttribute('dragover');
-
-            if (!this.hasAttribute('uploading')) {
-                const file = (e as DragEvent).dataTransfer?.files[0];
-                if (file) {
-                    this.handleFile(file);
+        // Only add drag listeners if no-drag is not set
+        if (!this.noDrag) {
+            this.uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (!this.hasAttribute('uploading')) {
+                    this.setAttribute('dragover', '');
                 }
-            }
-        });
+            });
+
+            this.uploadArea.addEventListener('dragleave', () => {
+                this.removeAttribute('dragover');
+            });
+
+            this.uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                this.removeAttribute('dragover');
+
+                if (!this.hasAttribute('uploading')) {
+                    const file = (e as DragEvent).dataTransfer?.files[0];
+                    if (file) {
+                        this.handleFile(file);
+                    }
+                }
+            });
+        }
 
         const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
         const retryElement = retrySlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.retry-button')!;
