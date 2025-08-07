@@ -105,7 +105,9 @@ export class ChunkifyUploader extends HTMLElement {
         this.shadowRoot!.innerHTML = `
           <style>
             :host {
-                display: block;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 width: 100%;
                 height: 150px;
                 border: 2px dashed #ccc;
@@ -116,8 +118,18 @@ export class ChunkifyUploader extends HTMLElement {
                 color: inherit;
                 font-family: inherit;
                 box-sizing: border-box;
+
                 }
       
+            .upload-area {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 100%;
+            }
+                
             :host([dragover]:not([no-drop])) {
                 border-color:  #007bff;
                 background:rgb(214, 235, 251);
