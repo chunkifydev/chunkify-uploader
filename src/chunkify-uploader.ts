@@ -28,16 +28,6 @@ export class ChunkifyUploader extends HTMLElement {
 
 
     attributeChangedCallback() {
-        this.updateLayout();
-    }
-
-    private updateLayout() {
-        // Clear everything
-        this.shadowRoot!.innerHTML = '';
-    
-        // Re-render everything
-        this.render();
-        this.cacheElements();
         this.setupEventListeners();
     }
 
@@ -333,30 +323,16 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
-        // Only add drag listeners if no-drag is not set
+        // Remove existing drag listeners
+        this.uploadArea.removeEventListener('dragover', this.handleDragOver);
+        this.uploadArea.removeEventListener('dragleave', this.handleDragLeave);
+        this.uploadArea.removeEventListener('drop', this.handleDrop);
+
+        // Only add drag listeners if no-drop is not set
         if (!this.noDrop) {
-            this.uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (!this.hasAttribute('uploading')) {
-                    this.setAttribute('dragover', '');
-                }
-            });
-
-            this.uploadArea.addEventListener('dragleave', () => {
-                this.removeAttribute('dragover');
-            });
-
-            this.uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                this.removeAttribute('dragover');
-
-                if (!this.hasAttribute('uploading')) {
-                    const file = (e as DragEvent).dataTransfer?.files[0];
-                    if (file) {
-                        this.handleFile(file);
-                    }
-                }
-            });
+            this.uploadArea.addEventListener('dragover', this.handleDragOver);
+            this.uploadArea.addEventListener('dragleave', this.handleDragLeave);
+            this.uploadArea.addEventListener('drop', this.handleDrop);
         }
 
         const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
@@ -368,6 +344,29 @@ export class ChunkifyUploader extends HTMLElement {
             this.resetState();
         });
     }
+
+    private handleDragOver = (e: DragEvent) => {
+        e.preventDefault();
+        if (!this.hasAttribute('uploading')) {
+            this.setAttribute('dragover', '');
+        }
+    };
+    
+    private handleDragLeave = () => {
+        this.removeAttribute('dragover');
+    };
+    
+    private handleDrop = (e: DragEvent) => {
+        e.preventDefault();
+        this.removeAttribute('dragover');
+    
+        if (!this.hasAttribute('uploading')) {
+            const file = e.dataTransfer?.files[0];
+            if (file) {
+                this.handleFile(file);
+            }
+        }
+    };
 
     private resetState() {
         this.removeAttribute('dragover');
