@@ -57,6 +57,7 @@ export const ChunkifyUploader: FC<ChunkifyUploaderProps> = (props) => {
   }, [props.endpoint, props.maxFileSize, props.noRetry, props.noDrop, props.noFileInfo]);
 
   useEffect(() => {
+    console.log('React useEffect called');
     if (!ref.current) return;
     
     const element = ref.current;

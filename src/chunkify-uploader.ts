@@ -28,7 +28,12 @@ export class ChunkifyUploader extends HTMLElement {
 
 
     attributeChangedCallback() {
-        this.setupEventListeners();
+        if (this.noDrop && this.uploadArea) {
+            // Remove existing drag listeners
+            this.uploadArea.removeEventListener('dragover', this.handleDragOver);
+            this.uploadArea.removeEventListener('dragleave', this.handleDragLeave);
+            this.uploadArea.removeEventListener('drop', this.handleDrop);
+        }
     }
 
     private cacheElements() {
@@ -212,7 +217,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
             
             .progress-bar-background {
-              width: 80%;
+              width: var(--progress-bar-width, 80%);
               height: var(--progress-bar-height, 6px);
               background-color: var(--progress-bar-bgcolor, #e9ecef);
               border-radius: 3px;
@@ -289,7 +294,7 @@ export class ChunkifyUploader extends HTMLElement {
               <div class="progress-text">0%</div>
               <div class="progress-bar-background">
                 <div class="progress-bar"></div>
-                </div>
+              </div>
             </div>
             <div class="error-container">
                 <slot name="error-message">
@@ -300,41 +305,45 @@ export class ChunkifyUploader extends HTMLElement {
             </div>
             <div class="success-container">
                 <slot name="success-message">
-                </slot>
+            </slot>
             </div>
           </div>
         `;
     }
 
     private setupEventListeners() {
+        console.log('setupEventListeners called');
+        console.log('fileInput exists:', !!this.fileInput);
         const uploadSlot = this.shadowRoot!.querySelector('slot[name="upload-button"]') as HTMLSlotElement;
         const uploadElement = uploadSlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.upload-button')!;
 
         uploadElement.addEventListener('click', () => {
+            console.log('Upload button clicked');
             if (!this.hasAttribute('uploading')) {
                 this.fileInput.click();
             }
         });
 
+        if (!this.uploadArea || !this.fileInput) {
+            console.log('Elements not ready, skipping setupEventListeners');
+            return;
+        }
+    
+
         this.fileInput.addEventListener('change', (e) => {
+            console.log('File input change event fired');
             const file = (e.target as HTMLInputElement).files?.[0];
             if (file) {
                 this.handleFile(file);
             }
         });
 
-        // Remove existing drag listeners
-        this.uploadArea.removeEventListener('dragover', this.handleDragOver);
-        this.uploadArea.removeEventListener('dragleave', this.handleDragLeave);
-        this.uploadArea.removeEventListener('drop', this.handleDrop);
-
-        // Only add drag listeners if no-drop is not set
-        if (!this.noDrop) {
+       if (!this.noDrop) {
             this.uploadArea.addEventListener('dragover', this.handleDragOver);
             this.uploadArea.addEventListener('dragleave', this.handleDragLeave);
             this.uploadArea.addEventListener('drop', this.handleDrop);
-        }
-
+       }
+    
         const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
         const retryElement = retrySlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.retry-button')!;
 
@@ -369,6 +378,7 @@ export class ChunkifyUploader extends HTMLElement {
     };
 
     private resetState() {
+        console.log('resetState called');
         this.removeAttribute('dragover');
         this.removeAttribute('error');
         this.removeAttribute('success');
@@ -392,7 +402,7 @@ export class ChunkifyUploader extends HTMLElement {
         // Check endpoint early
         if (!this._endpoint) {
             this.setError(
-                'No endpoint attribute provided. Please set endpoint attribute or assign a function to the endpoint property.',
+                'No endpoint attribute provided. Please set endpoint attribute/property.',
                 -1
             );
             return;
@@ -402,7 +412,7 @@ export class ChunkifyUploader extends HTMLElement {
         const maxSize = this.maxFileSize;
         if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
             this.setError(
-                `File size exceeds the maximum allowed size of ${maxSize} MB`,
+                `File size exceeds the maximum allowed of ${maxSize} MB`,
                 -2
             );
             return;
@@ -437,7 +447,6 @@ export class ChunkifyUploader extends HTMLElement {
 
     private async getUploadUrl(): Promise<string> {
         const endpoint = this._endpoint;
-    
         // Check if it's a function and execute it
         if (typeof endpoint === 'function') {
             try {
@@ -540,8 +549,8 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('uploading');
 
         console.log('statusCode', statusCode);
-        // If statusCode is -1, it means the endpoint is not set so return early with the message.
-        if (statusCode === -1) {
+        // If statusCode is < 0, it means the endpoint is not set or the file size is too large so return early with the message.
+        if (statusCode && statusCode < 0) {
             this.errorContainer.innerHTML = message;
             return;
         }
