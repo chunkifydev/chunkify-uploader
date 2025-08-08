@@ -7,12 +7,11 @@ export class ChunkifyUploader extends HTMLElement {
 
     private uploadArea!: HTMLElement;
     private fileInput!: HTMLInputElement;
-    private progressBar!: HTMLElement;
-    private progressText!: HTMLElement;
+    private progressBar!: HTMLSlotElement;
+    private progressText!: HTMLSlotElement;
     private errorMessage!: HTMLSlotElement;
     private successMessage!: HTMLSlotElement;
-    private fileInfo!: HTMLElement;
-    private errorContainer!: HTMLElement;
+    private fileInfo!: HTMLSlotElement;
 
     constructor() {
         super();
@@ -39,16 +38,15 @@ export class ChunkifyUploader extends HTMLElement {
     private cacheElements() {
         this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
-        this.progressBar = this.shadowRoot!.querySelector('.progress-bar')!;
-        this.progressText = this.shadowRoot!.querySelector('.progress-text')!;
+        this.progressBar = this.shadowRoot!.querySelector('slot[name="progress-bar"]') as HTMLSlotElement;
+        this.progressText = this.shadowRoot!.querySelector('slot[name="progress-text"]') as HTMLSlotElement;
         this.errorMessage = this.shadowRoot!.querySelector(
             'slot[name="error-message"]'
         ) as HTMLSlotElement;
         this.successMessage = this.shadowRoot!.querySelector(
             'slot[name="success-message"]'
         ) as HTMLSlotElement;
-        this.fileInfo = this.shadowRoot!.querySelector('.file-info')!;
-        this.errorContainer = this.shadowRoot!.querySelector('.error-container')!;
+        this.fileInfo = this.shadowRoot!.querySelector('slot[name="file-info"]') as HTMLSlotElement;
     }
 
     get endpoint(): string | (() => Promise<string>) {
@@ -78,21 +76,6 @@ export class ChunkifyUploader extends HTMLElement {
         }
     }
 
-    get noRetry(): boolean {
-        return this.hasAttribute('no-retry');
-    }
-
-    set noRetry(value: boolean) {
-        this.toggleAttribute('no-retry', Boolean(value));
-    }
-
-    get noFileInfo(): boolean {
-        return this.hasAttribute('no-file-info');
-    }
-    set noFileInfo(value: boolean) {
-        this.toggleAttribute('no-file-info', Boolean(value));
-    }
-
     get noDrop(): boolean {
         return this.hasAttribute('no-drop');
     }
@@ -101,223 +84,74 @@ export class ChunkifyUploader extends HTMLElement {
         this.toggleAttribute('no-drop', Boolean(value));
     }
 
+    private isDisabled(): boolean {
+        return this.hasAttribute('uploading') || this.hasAttribute('error') || this.hasAttribute('success');
+    }
+
     private render() {
         this.shadowRoot!.innerHTML = `
-          <style>
-            :host {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                height: 150px;
-                border: 2px dashed #ccc;
-                padding: 20px;
-                text-align: center;
-                border-radius: 8px;
-                background: #fafafa;
-                color: inherit;
-                font-family: inherit;
-                box-sizing: border-box;
-
+            <style>
+                :host {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--gap, 8px);
                 }
-      
-            .upload-area {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                height: 100%;
-            }
                 
-            :host([dragover]:not([no-drop])) {
-                border-color:  #007bff;
-                background:rgb(214, 235, 251);
-            }
-      
-            :host([error]) {
-                border-color: #dc3545;
-                background: #fff5f5;
-            }
-      
-            :host([success]) {
-                border-color: #28a745;
-                background: #f8fff9;
-            }
-
-            /* Default state  */
-            .upload-button, slot[name="upload-button"] {
-                display: inline-block;
-            }
-
-            .title, slot[name="title"] {
-                display: block;
-            }
-            
-            /* Hide other elements by default */
-            .progress-container, .file-info, .error-container, .success-container, .retry-button {
-                display: none;
-            }
-
-            /* Error state */
-            :host([error]) slot[name="upload-button"],
-            :host([error]) slot[name="title"],
-            :host([error]) .file-info {
-                display: none;
-            }
-
-            :host([error]) .error-container {
-                display: block;
-            }
-            
-            /* Show retry container only if NOT no-retry */
-            :host([error]:not([no-retry])) .retry-button {
-                display: block;
-            }
-
-            /* Success state */
-            :host([success]) .upload-button,
-            :host([success]) slot[name="upload-button"],
-            :host([success]) .title,
-            :host([success]) slot[name="title"] {
-                display: none;
-            }
-
-            :host([success]) .success-container {
-                display: block;
-            }
-
-            /* Uploading state */
-            :host([uploading]) .upload-button,
-            :host([uploading]) slot[name="upload-button"],
-            :host([uploading]) .title,
-            :host([uploading]) slot[name="title"] {
-                display: none;
-            }
-
-            :host([uploading]) .progress-container,
-            :host([uploading]:not([no-file-info])) .file-info {
-                display: block;
-            }
-            
-            .upload-button {
-              background: #16a249;
-              color: white;
-              border: none;
-              padding: 10px 20px;
-              border-radius: 4px;
-              cursor: pointer;
-              font-size: 16px;
-              margin: 20px auto;
-              transition: background-color 0.3s ease;
-            }
- 
-            .upload-button:hover {
-              background: #01913f;
-            }
-            
-            .upload-button:disabled {
-              background: #6c757d;
-              cursor: not-allowed;
-            }
-            
-            .progress-container {
-              width: 100%;
-              margin-top: 15px;
-            }
-            
-            .progress-bar-background {
-              width: var(--progress-bar-width, 80%);
-              height: var(--progress-bar-height, 6px);
-              background-color: var(--progress-bar-bgcolor, #e9ecef);
-              border-radius: 3px;
-              margin: 0 auto;
-            }
-            
-            .progress-bar {
-              height: 100%;
-              background-color: var(--progress-bar-color, #007bff);
-              border-radius: var(--progress-bar-radius, 3px);
-              transition: width 0.3s;
-              width: 0%;
-            }
-
-            .progress-text {
-              display: var(--progress-text-display, block);
-              text-align: center;
-              margin-bottom: 8px;
-              font-size: var(--progress-text-font-size, 14px);
-              color: var(--progress-text-color, #666);
-              font-weight: var(--progress-text-font-weight, 500);
-            }
-        
-            .retry-button {
-              background: #dc3545;
-              color: white;
-              border: none;
-              padding: 10px 20px;
-              border-radius: 4px;
-              cursor: pointer;
-              margin: 20px auto;
-              font-size: 16px;
-            }
-            
-            .retry-button:hover {
-              background: #c82333;
-            }
-
-            slot[name="title"] {
-                font-size: var(--title-font-size, 16px);
-                font-weight: var(--title-font-weight,semibold);
-            }
-            
-            slot[name="success-message"] {
-                color: var(--success-message-color, #28a745);
-                font-weight: var(--success-message-font-weight, bold);
-                font-size: var(--success-message-font-size, inherit);
+                .upload-area {
+                    /* Remove display: contents */
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 100px;  /* Ensure it has some height */
                 }
-
-            slot[name="error-message"] {
-                color: var(--error-message-color, #dc3545);
-                font-weight: var(--error-message-font-weight, bold);
-                font-size: var(--error-message-font-size, inherit);
+                
+                /* Only state management, no styling */
+                slot[name="progress-text"],
+                slot[name="progress-bar"],
+                slot[name="file-info"],
+                slot[name="error-message"],
+                slot[name="retry-button"],
+                slot[name="success-message"] {
+                    display: none;
                 }
-
-            .file-info {
-              margin-top: var(--file-info-margin-top, 10px); 
-              font-size: var(--file-info-font-size, 16px);
-              color: var(--file-info-color, #666);
-            }
-          </style>
-          
-          <div class="upload-area">
-            <input type="file" accept="video/*,audio/*" style="display: none;">
-            <slot name="title">
-                <div class="title">Drop your video here</div>
-            </slot>
-            <!-- Slot for custom upload button -->
-            <slot name="upload-button">
-                <button class="upload-button">Select Video</button>
-            </slot>
-            <div class="file-info"></div>
-            <div class="progress-container">
-              <div class="progress-text">0%</div>
-              <div class="progress-bar-background">
-                <div class="progress-bar"></div>
-              </div>
+                
+                /* State-based visibility */
+                :host([uploading]) slot[name="file-info"],
+                :host([uploading]) slot[name="progress-text"],
+                :host([uploading]) slot[name="progress-bar"] { display: block; }
+                
+                :host([error]) slot[name="error-message"] { display: block; }
+                :host([error]) slot[name="retry-button"] { display: block; }
+                :host([success]) slot[name="success-message"] { display: block; }
+                
+                /* Hide upload UI during states */
+                :host([uploading]) slot[name="title"],
+                :host([uploading]) slot[name="upload-button"],
+                :host([error]) slot[name="title"],
+                :host([error]) slot[name="upload-button"],
+                :host([error]) slot[name="file-info"],
+                :host([error]) slot[name="progress-bar"],
+                :host([error]) slot[name="progress-text"],
+                :host([success]) slot[name="title"],
+                :host([success]) slot[name="upload-button"] {
+                    display: none;
+                }
+            </style>
+            
+            <input type="file" accept="*/*" style="display: none;">
+            
+            <div class="upload-area">
+                <slot name="title"></slot>
+                <slot name="upload-button"></slot>
+                <slot name="file-info"></slot>
+                <slot name="progress-text"></slot>
+                <slot name="progress-bar"></slot>
+                <slot name="error-message"></slot>
+                <slot name="retry-button"></slot>
+                <slot name="success-message"></slot>
             </div>
-            <div class="error-container">
-                <slot name="error-message">
-                </slot>
-                <slot name="retry-button">
-                    
-                </slot>
-            </div>
-            <div class="success-container">
-                <slot name="success-message">
-            </slot>
-            </div>
-          </div>
         `;
     }
 
@@ -325,14 +159,18 @@ export class ChunkifyUploader extends HTMLElement {
         console.log('setupEventListeners called');
         console.log('fileInput exists:', !!this.fileInput);
         const uploadSlot = this.shadowRoot!.querySelector('slot[name="upload-button"]') as HTMLSlotElement;
-        const uploadElement = uploadSlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.upload-button')!;
+        const uploadElement = uploadSlot.assignedNodes()[0] as HTMLElement
 
-        uploadElement.addEventListener('click', () => {
-            console.log('Upload button clicked');
-            if (!this.hasAttribute('uploading')) {
-                this.fileInput.click();
-            }
-        });
+        if (uploadElement) {
+            uploadElement.addEventListener('click', () => {
+                console.log('Upload button clicked');
+                if (!this.hasAttribute('uploading')) {
+                    this.fileInput.click();
+                }
+            });
+        } else {
+            console.warn('No upload button provided');
+        }
 
         if (!this.uploadArea || !this.fileInput) {
             console.log('Elements not ready, skipping setupEventListeners');
@@ -355,18 +193,20 @@ export class ChunkifyUploader extends HTMLElement {
        }
     
         const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
-        const retryElement = retrySlot.assignedNodes()[0] as HTMLElement || this.shadowRoot!.querySelector('.retry-button')!;
+        const retryElement = retrySlot.assignedNodes()[0] as HTMLElement
 
-        retryElement.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.resetState();
-        });
+        if (retryElement) {
+            retryElement.addEventListener('click', (e) => {
+                e.preventDefault();
+                    e.stopPropagation();
+                    this.resetState();
+                });
+        }
     }
 
     private handleDragOver = (e: DragEvent) => {
         e.preventDefault();
-        if (!this.hasAttribute('uploading')) {
+        if (!this.isDisabled()) {
             this.setAttribute('dragover', '');
         }
     };
@@ -379,7 +219,7 @@ export class ChunkifyUploader extends HTMLElement {
         e.preventDefault();
         this.removeAttribute('dragover');
     
-        if (!this.hasAttribute('uploading')) {
+        if (!this.isDisabled()) {
             const file = e.dataTransfer?.files[0];
             if (file) {
                 this.handleFile(file);
@@ -395,11 +235,12 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('uploading');
 
         // Reset progress bar
-        this.progressBar.style.width = '0%';
-        this.progressText.textContent = '0%';
+        this.style.setProperty('--progress', '0%');
+        this.setAttribute('progress', "0");
+        this.progressText.assignedNodes()[0]!.textContent = '0%';
 
         // Clear error message
-        this.errorMessage.textContent = '';
+        this.errorMessage.assignedNodes()[0]!.textContent = '';
 
         // Reset file input
         this.fileInput.value = '';
@@ -510,8 +351,14 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private updateProgress(percent: number) {
-        this.progressBar.style.width = `${percent}%`;
-        this.progressText.textContent = `${Math.round(percent)}%`;
+        this.style.setProperty('--progress', percent + '%');
+        this.setAttribute('progress', Math.round(percent).toString());
+
+        const progressText = this.progressText.assignedNodes()[0] as HTMLElement;
+
+        if (progressText) {
+            progressText.textContent = `${Math.round(percent)}%`;
+        }
 
         this.dispatchEvent(
             new CustomEvent('upload-progress', {
@@ -522,10 +369,16 @@ export class ChunkifyUploader extends HTMLElement {
 
     private showProgress() {
         this.setAttribute('uploading', '');
-
+    
         if (this.currentFile) {
             const sizeInMB = (this.currentFile.size / (1024 * 1024)).toFixed(2);
-            this.fileInfo.textContent = `Uploading: ${this.currentFile.name} (${sizeInMB} MB)`;
+            
+            // Get user's element from file-info slot
+            const fileInfoElement = this.fileInfo.assignedNodes()[0] as HTMLElement;
+            
+            if (fileInfoElement) {
+                fileInfoElement.textContent = `Uploading: ${this.currentFile.name} (${sizeInMB} MB)`;
+            }
         }
     }
 
@@ -534,14 +387,6 @@ export class ChunkifyUploader extends HTMLElement {
 
         this.setAttribute('success', '');
 
-        // Check if user provided custom content
-        const hasCustomContent =
-            this.successMessage &&
-            this.successMessage.assignedNodes().length > 0;
-
-        if (!hasCustomContent) {
-            this.successMessage.textContent = `${file.name} uploaded successfully!`;
-        }
 
         this.dispatchEvent(
             new CustomEvent('upload-success', {
@@ -550,22 +395,21 @@ export class ChunkifyUploader extends HTMLElement {
         );
     }
 
-    private setError(message: string, statusCode?: number) {
+    private setError(message: string, statusCode: number = 0) {
         this.setAttribute('error', '');
         this.removeAttribute('uploading');
-
-        console.log('statusCode', statusCode);
-        // If statusCode is < 0, it means the endpoint is not set or the file size is too large so return early with the message.
-        if (statusCode && statusCode < 0) {
-            this.errorContainer.innerHTML = message;
-            return;
-        }
-        // Check if user provided custom content
-        const hasCustomContent =
-            this.errorMessage && this.errorMessage.assignedNodes().length > 0;
-
-        if (!hasCustomContent) {
-            this.errorMessage.textContent = message;
+       
+        // Check for internal error and force display (except if no error message slot was set)
+        // If the user provided a slot but empty it means they want to display the original message that is passed here as parameters
+        if (statusCode < 0) {
+            console.log('setting early error message', message);
+            this.errorMessage.assignedNodes()[0]!.textContent = message;
+        } else {
+            // Check if user provided empty error slot
+            const errorElement = this.errorMessage.assignedNodes()[0] as HTMLElement;
+            if (errorElement && (!errorElement.textContent || errorElement.textContent.trim() === '')) {
+                errorElement.textContent = message;
+            }
         }
 
         this.dispatchEvent(
