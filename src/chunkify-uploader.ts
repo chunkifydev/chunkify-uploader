@@ -160,9 +160,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
 
             /* Error state */
-            :host([error]) .upload-button,
             :host([error]) slot[name="upload-button"],
-            :host([error]) .title,
             :host([error]) slot[name="title"],
             :host([error]) .file-info {
                 display: none;
@@ -295,11 +293,11 @@ export class ChunkifyUploader extends HTMLElement {
           <div class="upload-area">
             <input type="file" accept="video/*,audio/*" style="display: none;">
             <slot name="title">
-                <div class="title">Drop video file here or click the button below</div>
+                <div class="title">Drop your video here</div>
             </slot>
             <!-- Slot for custom upload button -->
             <slot name="upload-button">
-                <button class="upload-button">Upload Video</button>
+                <button class="upload-button">Select Video</button>
             </slot>
             <div class="file-info"></div>
             <div class="progress-container">
@@ -312,7 +310,7 @@ export class ChunkifyUploader extends HTMLElement {
                 <slot name="error-message">
                 </slot>
                 <slot name="retry-button">
-                    <button class="retry-button">Try Again</button>
+                    
                 </slot>
             </div>
             <div class="success-container">
@@ -459,23 +457,18 @@ export class ChunkifyUploader extends HTMLElement {
 
     private async getUploadUrl(): Promise<string> {
         const endpoint = this._endpoint;
-        // Check if it's a function and execute it
-        if (typeof endpoint === 'function') {
-            try {
-                return await endpoint();
-            } catch (error) {
-                // If the error has a status, pass it through
-                if (error && typeof error === 'object' && 'status' in error) {
-                    console.log('error with status', error);
-                    throw error;
-                }
-                // Otherwise, add status 0 for network errors
-                throw { message: (error as Error).message, status: 0 };
-            }
-        } else {
-            // Use as direct URL
-            return endpoint;
+        
+        // Get URL (function or direct string)
+        const url = typeof endpoint === 'function' ? await endpoint() : endpoint;
+        
+        // Validate URL
+        try {
+            new URL(url);
+        } catch (urlError) {
+            throw new Error(`Invalid upload URL`);
         }
+        
+        return url;
     }
 
     private async uploadToUrl(file: File, uploadUrl: string) {
@@ -538,6 +531,7 @@ export class ChunkifyUploader extends HTMLElement {
 
     private setSuccess(file: File) {
         this.removeAttribute('uploading');
+
         this.setAttribute('success', '');
 
         // Check if user provided custom content
