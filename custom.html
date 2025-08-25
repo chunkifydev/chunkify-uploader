@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* User's custom styling */
+        chunkify-uploader {
+            width: 50%;
+            height: 120px;
+            text-align: center;
+            justify-content: center;
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 0 auto;
+            background: #fafafa;
+        }
+        
+        chunkify-uploader[dragover] {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        chunkify-uploader[error] {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        chunkify-uploader[success] {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+        
+        .my-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+
+        }
+        
+        .my-upload-btn {
+            background: #007bff;
+            width: 40%;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            align-self: center;
+        }
+        
+        .my-upload-btn:hover {
+            background: #0056b3;
+        }
+        
+        .my-progress-text {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        
+        .my-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, 
+                #007bff var(--progress, 0%),     /* Blue fill up to progress */
+                #e9ecef var(--progress, 0%)      /* Gray background from progress */
+            );
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+                
+        .my-error {
+            color: #dc3545;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .my-retry {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .my-success {
+            color: #28a745;
+            font-weight: bold;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .my-file-info {
+            color: #666;
+            font-size: 18px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <chunkify-uploader id="uploader" endpoint="http://localhost:8787/api/uploasd">
+        <!-- Custom title -->
+        <h3 slot="title" class="my-title">Drop your files here</h3>
+        
+        <!-- Custom upload button -->
+        <button slot="upload-button" class="my-upload-btn">
+             Select File
+        </button>
+        
+        <!-- Custom file info -->
+        <div slot="file-info" class="my-file-info"></div>
+        
+        <!-- Custom progress text -->
+        
+       <!-- <div slot="progress-text" class="my-progress-text">0%</div> -->
+      
+        
+        <!-- Custom progress bar -->
+        <div slot="progress-bar" class="my-progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+        
+        <!-- Custom error message -->
+        <div slot="error-message" class="my-error"></div>
+        
+        <!-- Custom retry button -->
+        <button slot="retry-button" class="my-retry">
+            Try Again
+        </button>
+
+        <div slot="success-message" class="my-success">
+            ✅ Upload completed successfully!
+        </div>
+    
+        <!-- Custom success message -->
+    </chunkify-uploader>
+    <chunkify-progress-text class="my-progress-text"></chunkify-progress-text>
+
+    <script type="module">
+        import './dist/chunkify-uploader.js';
+        import './dist/chunkify-progress-text.js';
+        
+        const uploader = document.getElementById('uploader');
+
+        /* uploader.endpoint = function () {
+            return fetch("http://localhost:8787/api/uploads").then(res => res.text());
+        }; */
+        
+        // Set max file size (100MB)
+        uploader.maxFileSize = 1000;
+        
+        // Listen to events
+        uploader.addEventListener('file-selected', (e) => {
+            console.log('File selected:', e.detail.fileName, e.detail.fileSize);
+        });
+        
+        uploader.addEventListener('upload-progress', (e) => {
+            const percent = e.detail.progress;
+            console.log('Progress:', percent + '%');
+            
+        });
+        
+        uploader.addEventListener('upload-success', (e) => {
+            console.log('Upload successful!', e.detail.fileName);
+        });
+        
+        uploader.addEventListener('upload-error', (e) => {
+            console.error('Upload failed:', e.detail.error, 'Status:', e.detail.status);
+        });
+    </script>
+</body>
+</html>

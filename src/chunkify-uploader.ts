@@ -7,10 +7,6 @@ export class ChunkifyUploader extends HTMLElement {
 
     private uploadArea!: HTMLElement;
     private fileInput!: HTMLInputElement;
-    private progressBar!: HTMLSlotElement;
-    private progressText!: HTMLSlotElement;
-    private errorMessage!: HTMLSlotElement;
-    private successMessage!: HTMLSlotElement;
     private fileInfo!: HTMLSlotElement;
 
     constructor() {
@@ -27,26 +23,12 @@ export class ChunkifyUploader extends HTMLElement {
 
 
     attributeChangedCallback() {
-        if (this.noDrop && this.uploadArea) {
-            // Remove existing drag listeners
-            this.uploadArea.removeEventListener('dragover', this.handleDragOver);
-            this.uploadArea.removeEventListener('dragleave', this.handleDragLeave);
-            this.uploadArea.removeEventListener('drop', this.handleDrop);
-        }
+
     }
 
     private cacheElements() {
-        this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
+       // this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
-        this.progressBar = this.shadowRoot!.querySelector('slot[name="progress-bar"]') as HTMLSlotElement;
-        this.progressText = this.shadowRoot!.querySelector('slot[name="progress-text"]') as HTMLSlotElement;
-        this.errorMessage = this.shadowRoot!.querySelector(
-            'slot[name="error-message"]'
-        ) as HTMLSlotElement;
-        this.successMessage = this.shadowRoot!.querySelector(
-            'slot[name="success-message"]'
-        ) as HTMLSlotElement;
-        this.fileInfo = this.shadowRoot!.querySelector('slot[name="file-info"]') as HTMLSlotElement;
     }
 
     get endpoint(): string | (() => Promise<string>) {
@@ -96,84 +78,51 @@ export class ChunkifyUploader extends HTMLElement {
                     flex-direction: column;
                     gap: var(--gap, 8px);
                 }
-                
-                .upload-area {
-                    /* Remove display: contents */
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    width: 100%;
-                    height: 100%;
-                    min-height: 100px;  /* Ensure it has some height */
+                    
+                /* Hide sub-components during uploading */
+                :host([uploading]) {
+                   --upload-button-display: none;
+                   --progress-text-display: block;
+                   --progress-bar-display: block;
                 }
-                
-                /* Only state management, no styling */
-                slot[name="progress-text"],
-                slot[name="progress-bar"],
-                slot[name="file-info"],
-                slot[name="error-message"],
-                slot[name="retry-button"],
-                slot[name="success-message"] {
-                    display: none;
+
+                :host([error]) {
+                    --upload-button-display: none;
+                    --progress-text-display: none;
+                    --progress-bar-display: none;
+                    --error-message-display: block;
                 }
-                
-                /* State-based visibility */
-                :host([uploading]) slot[name="file-info"],
-                :host([uploading]) slot[name="progress-text"],
-                :host([uploading]) slot[name="progress-bar"] { display: block; }
-                
-                :host([error]) slot[name="error-message"] { display: block; }
-                :host([error]) slot[name="retry-button"] { display: block; }
-                :host([success]) slot[name="success-message"] { display: block; }
-                
-                /* Hide upload UI during states */
-                :host([uploading]) slot[name="title"],
-                :host([uploading]) slot[name="upload-button"],
-                :host([error]) slot[name="title"],
-                :host([error]) slot[name="upload-button"],
-                :host([error]) slot[name="file-info"],
-                :host([error]) slot[name="progress-bar"],
-                :host([error]) slot[name="progress-text"],
-                :host([success]) slot[name="title"],
-                :host([success]) slot[name="upload-button"] {
-                    display: none;
+
+                :host([success]) {
+                    --upload-button-display: none;
+                    --progress-text-display: none;
+                    --progress-bar-display: none;
+                    --success-message-display: block;
                 }
+
             </style>
             
             <input type="file" accept="*/*" style="display: none;">
             
-            <div class="upload-area">
-                <slot name="title"></slot>
-                <slot name="upload-button"></slot>
-                <slot name="file-info"></slot>
-                <slot name="progress-text"></slot>
-                <slot name="progress-bar"></slot>
-                <slot name="error-message"></slot>
-                <slot name="retry-button"></slot>
-                <slot name="success-message"></slot>
-            </div>
+            <slot></slot>
         `;
     }
 
     private setupEventListeners() {
         console.log('setupEventListeners called');
         console.log('fileInput exists:', !!this.fileInput);
-        const uploadSlot = this.shadowRoot!.querySelector('slot[name="upload-button"]') as HTMLSlotElement;
-        const uploadElement = uploadSlot.assignedNodes()[0] as HTMLElement
 
-        if (uploadElement) {
-            uploadElement.addEventListener('click', () => {
-                console.log('Upload button clicked');
-                if (!this.hasAttribute('uploading')) {
-                    this.fileInput.click();
-                }
-            });
-        } else {
-            console.warn('No upload button provided');
-        }
+        // NEW: Listen for sub-component upload button clicks
+        this.addEventListener('upload-button-clicked', () => {
+            console.log('Sub-component upload button clicked');
+            console.log('fileInput when clicked:', this.fileInput);
+            if (!this.hasAttribute('uploading')) {
+                this.fileInput.click();
+            }
+        });
 
-        if (!this.uploadArea || !this.fileInput) {
-            console.log('Elements not ready, skipping setupEventListeners');
+        if (!this.fileInput) {
+            console.log('FileInput not ready, skipping setupEventListeners');
             return;
         }
     
@@ -186,13 +135,19 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
-       if (!this.noDrop) {
+        this.addEventListener('drop-file-dropped', (e) => {
+            if (!this.isDisabled()) {
+                this.handleFile((e as CustomEvent).detail.file);
+            }
+        });
+
+       /* if (!this.noDrop) {
             this.uploadArea.addEventListener('dragover', this.handleDragOver);
             this.uploadArea.addEventListener('dragleave', this.handleDragLeave);
             this.uploadArea.addEventListener('drop', this.handleDrop);
-       }
+        } */
     
-        const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
+       /*  const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
         const retryElement = retrySlot.assignedNodes()[0] as HTMLElement
 
         if (retryElement) {
@@ -201,31 +156,9 @@ export class ChunkifyUploader extends HTMLElement {
                     e.stopPropagation();
                     this.resetState();
                 });
-        }
+        } */
     }
 
-    private handleDragOver = (e: DragEvent) => {
-        e.preventDefault();
-        if (!this.isDisabled()) {
-            this.setAttribute('dragover', '');
-        }
-    };
-    
-    private handleDragLeave = () => {
-        this.removeAttribute('dragover');
-    };
-    
-    private handleDrop = (e: DragEvent) => {
-        e.preventDefault();
-        this.removeAttribute('dragover');
-    
-        if (!this.isDisabled()) {
-            const file = e.dataTransfer?.files[0];
-            if (file) {
-                this.handleFile(file);
-            }
-        }
-    };
 
     private resetState() {
         console.log('resetState called');
@@ -234,24 +167,47 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('success');
         this.removeAttribute('uploading');
 
+        // Reset sub-components
+        const progressTexts = this.querySelectorAll('chunkify-progress-text');
+        const progressBars = this.querySelectorAll('chunkify-progress-bar');
+        const uploadButtons = this.querySelectorAll('chunkify-upload-button');
+
+        progressTexts.forEach(component => {
+            component.setAttribute('value', '0');
+            (component as HTMLElement).style.display = 'none';
+        });
+        
+        progressBars.forEach(component => {
+            component.setAttribute('value', '0');
+            (component as HTMLElement).style.display = 'none';
+        });
+        
+        uploadButtons.forEach(button => {
+            (button as HTMLElement).style.display = 'block';
+        });
+
         // Reset progress bar
-        this.style.setProperty('--progress', '0%');
+        /* this.style.setProperty('--progress', '0%');
         this.setAttribute('progress', "0");
-        this.progressText.assignedNodes()[0]!.textContent = '0%';
+        this.progressText.assignedNodes()[0]!.textContent = '0%'; */
 
         // Clear error message
-        this.errorMessage.assignedNodes()[0]!.textContent = '';
-
+   
         // Reset file input
         this.fileInput.value = '';
 
         // Clear current file
         this.currentFile = null;
+
+        this.dispatchEvent(new CustomEvent('upload-reset', {
+            bubbles: true
+        }));
     }
 
     private async handleFile(file: File) {
         // Check endpoint early
         if (!this._endpoint) {
+            console.log('No endpoint attribute provided. Please set endpoint attribute/property.');
             this.setError(
                 'No endpoint attribute provided. Please set endpoint attribute/property.',
                 -1
@@ -262,6 +218,7 @@ export class ChunkifyUploader extends HTMLElement {
         // Check file size
         const maxSize = this.maxFileSize;
         if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
+            console.log('File size exceeds the maximum allowed of ${maxSize} MB');
             this.setError(
                 `File size exceeds the maximum allowed of ${maxSize} MB`,
                 -2
@@ -289,6 +246,7 @@ export class ChunkifyUploader extends HTMLElement {
             await this.uploadToUrl(file, uploadUrl);
             this.setSuccess(file);
         } catch (error) {
+            console.log('Error during upload:', error);
             const errorMessage =(error as any).message || (error as Error).message;
             const statusCode = (error as any).status;
             this.setError(errorMessage, statusCode);
@@ -351,14 +309,19 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private updateProgress(percent: number) {
-        this.style.setProperty('--progress', percent + '%');
         this.setAttribute('progress', Math.round(percent).toString());
 
-        const progressText = this.progressText.assignedNodes()[0] as HTMLElement;
+        // Update sub-components directly
+        const progressTexts = this.querySelectorAll('chunkify-progress-text');
+        const progressBars = this.querySelectorAll('chunkify-progress-bar');
 
-        if (progressText) {
-            progressText.textContent = `${Math.round(percent)}%`;
-        }
+        progressTexts.forEach(component => {
+            component.setAttribute('value', Math.round(percent).toString());
+        });
+        
+        progressBars.forEach(component => {
+            component.setAttribute('value', Math.round(percent).toString());
+        });
 
         this.dispatchEvent(
             new CustomEvent('upload-progress', {
@@ -370,7 +333,14 @@ export class ChunkifyUploader extends HTMLElement {
     private showProgress() {
         this.setAttribute('uploading', '');
     
-        if (this.currentFile) {
+        // Hide upload buttons programmatically
+        /* const uploadButtons = this.querySelectorAll('chunkify-upload-button');
+        uploadButtons.forEach(button => {
+            (button as HTMLElement).style.display = 'none';
+        }); */
+
+    
+        /* if (this.currentFile) {
             const sizeInMB = (this.currentFile.size / (1024 * 1024)).toFixed(2);
             
             // Get user's element from file-info slot
@@ -379,7 +349,7 @@ export class ChunkifyUploader extends HTMLElement {
             if (fileInfoElement) {
                 fileInfoElement.textContent = `Uploading: ${this.currentFile.name} (${sizeInMB} MB)`;
             }
-        }
+        } */
     }
 
     private setSuccess(file: File) {
@@ -402,15 +372,13 @@ export class ChunkifyUploader extends HTMLElement {
         // Check for internal error and force display (except if no error message slot was set)
         // If the user provided a slot but empty it means they want to display the original message that is passed here as parameters
         if (statusCode < 0) {
-            console.log('setting early error message', message);
-            this.errorMessage.assignedNodes()[0]!.textContent = message;
-        } else {
-            // Check if user provided empty error slot
-            const errorElement = this.errorMessage.assignedNodes()[0] as HTMLElement;
-            if (errorElement && (!errorElement.textContent || errorElement.textContent.trim() === '')) {
-                errorElement.textContent = message;
+            console.log('Setup error: ', message);
+            //  Find and update error message component
+            const errorMessage = this.querySelector('chunkify-error-message');
+            if (errorMessage) {
+                (errorMessage as any).setMessage(message);
             }
-        }
+        } 
 
         this.dispatchEvent(
             new CustomEvent('upload-error', {

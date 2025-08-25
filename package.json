@@ -14,6 +14,36 @@
       "require": "./dist/chunkify-uploader.cjs.js",
       "default": "./dist/chunkify-uploader.cjs.js"
     },
+    "./progress-text": {
+      "import": "./dist/chunkify-progress-text.mjs",
+      "require": "./dist/chunkify-progress-text.cjs.js",
+      "default": "./dist/chunkify-progress-text.cjs.js"
+    },
+    "./progress-bar": {
+      "import": "./dist/chunkify-progress-bar.mjs",
+      "require": "./dist/chunkify-progress-bar.cjs.js",
+      "default": "./dist/chunkify-progress-bar.cjs.js"
+    },
+    "./upload-button": {
+      "import": "./dist/chunkify-upload-button.mjs",
+      "require": "./dist/chunkify-upload-button.cjs.js",
+      "default": "./dist/chunkify-upload-button.cjs.js"
+    },
+    "./error-message": {
+      "import": "./dist/chunkify-error-message.mjs",
+      "require": "./dist/chunkify-error-message.cjs.js",
+      "default": "./dist/chunkify-error-message.cjs.js"
+    },
+    "./success-message": {
+      "import": "./dist/chunkify-success-message.mjs",
+      "require": "./dist/chunkify-success-message.cjs.js",
+      "default": "./dist/chunkify-success-message.cjs.js"
+    },
+    "./drop": {
+      "import": "./dist/chunkify-drop.mjs",
+      "require": "./dist/chunkify-drop.cjs.js",
+      "default": "./dist/chunkify-drop.cjs.js"
+    },
     "./react": {
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.js",
@@ -24,9 +54,9 @@
     "dist/"
   ],
   "scripts": {
-    "build:esm": "esbuild src/chunkify-uploader.ts --format=esm --outdir=dist --out-extension:.js=.mjs",
-    "build:cjs": "esbuild src/chunkify-uploader.ts --format=cjs --outdir=dist --out-extension:.js=.cjs.js",
-    "build:iife": "esbuild src/chunkify-uploader.ts --format=iife --outfile=./dist/chunkify-uploader.js",
+    "build:esm": "esbuild src/chunkify-uploader.ts src/chunkify-progress-text.ts src/chunkify-progress-bar.ts src/chunkify-upload-button.ts src/chunkify-error-message.ts src/chunkify-success-message.ts src/chunkify-drop.ts --format=esm --outdir=dist --out-extension:.js=.mjs",
+    "build:cjs": "esbuild src/chunkify-uploader.ts src/chunkify-progress-text.ts src/chunkify-progress-bar.ts src/chunkify-upload-button.ts src/chunkify-error-message.ts src/chunkify-success-message.ts src/chunkify-drop.ts --format=cjs --outdir=dist --out-extension:.js=.cjs.js",
+    "build:iife": "esbuild src/chunkify-uploader.ts src/chunkify-progress-text.ts src/chunkify-progress-bar.ts src/chunkify-upload-button.ts src/chunkify-error-message.ts src/chunkify-success-message.ts src/chunkify-drop.ts --format=iife --outdir=dist",
     "build:react": "tsc --project tsconfig.react.json",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
     "build": "npm run build:esm && npm run build:cjs && npm run build:iife && npm run build:react && npm run build:types"

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* User's custom styling */
+        chunkify-uploader {
+            width: 40%;
+            margin: 0 auto;
+        
+        }
+        
+        chunkify-uploader[error] {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        chunkify-uploader[success] {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .my-drop {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 120px;
+            padding: 20px;
+            background: #fafafa;
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .my-drop[dragover] {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+
+  
+        .my-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .my-upload-btn {
+            background: #007bff;
+            width: 40%;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            align-self: center;
+        }
+        
+        .my-upload-btn:hover {
+            background: #0056b3;
+        }
+        
+        .my-progress-text {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 8px;
+        }
+        
+        .my-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, 
+                #007bff var(--progress, 0%),     /* Blue fill up to progress */
+                #e9ecef var(--progress, 0%)      /* Gray background from progress */
+            );
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+                
+        .my-error {
+            color: #dc3545;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .my-retry {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .my-success {
+            color: #28a745;
+            font-weight: bold;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .my-file-info {
+            color: #666;
+            font-size: 18px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .my-upload-btn {
+            background: #007bff;
+            width: 40%;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            align-self: center;
+        }
+    </style>
+</head>
+<body>
+    <chunkify-uploader id="uploader" endpoint="http://localhost:8787/api/uplossad">
+        <chunkify-drop class="my-drop">
+            <span class="my-title">Drop your file here</span>
+            <chunkify-upload-button class="my-upload-btn">Upload Video</chunkify-upload-button>
+            <chunkify-progress-text class="my-progress-text"></chunkify-progress-text>
+            <chunkify-progress-bar class="my-progress-bar"></chunkify-progress-bar>
+            <chunkify-error-message class="my-error">Error during upload</chunkify-error-message>
+            <chunkify-success-message class="my-success">Upload successful</chunkify-success-message>
+        </chunkify-drop>
+    </chunkify-uploader>
+   
+
+    <script type="module">
+        import './dist/chunkify-uploader.js';
+        import './dist/chunkify-drop.js';
+        import './dist/chunkify-progress-text.js';
+        import './dist/chunkify-progress-bar.js';
+        import './dist/chunkify-upload-button.js';
+        import './dist/chunkify-error-message.js';
+        import './dist/chunkify-success-message.js';
+        
+        const uploader = document.getElementById('uploader');
+
+         /* uploader.endpoint = function () {
+            return fetch("http://localhost:8787/api/upload").then(res => res.text());
+        }; */
+        
+        // Set max file size (100MB)
+        uploader.maxFileSize = 1000;
+        
+        // Listen to events
+        uploader.addEventListener('file-selected', (e) => {
+            console.log('File selected:', e.detail.fileName, e.detail.fileSize);
+        });
+        
+        uploader.addEventListener('upload-progress', (e) => {
+            const percent = e.detail.progress;
+            console.log('Progress:', percent + '%');
+            
+        });
+        
+        uploader.addEventListener('upload-success', (e) => {
+            console.log('Upload successful!', e.detail.fileName);
+        });
+        
+        uploader.addEventListener('upload-error', (e) => {
+            console.error('Upload error:', e.detail.error + ' and status code: ' + e.detail.status);
+            const errorMsg = document.querySelector('chunkify-error-message');
+          // if (e.detail.status !== undefined) {errorText.textContent = e.detail.status;}
+          if (e.detail.status === 404) {errorMsg.textContent = "Upload URL not found";}
+          if (e.detail.status === 0) {errorMsg.textContent = "Network error during upload";}
+            
+        });
+    </script>
+</body>
+</html>
