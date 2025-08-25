@@ -89,10 +89,10 @@
             background: #dc3545;
             color: white;
             border: none;
-            padding: 10px 20px;
             border-radius: 6px;
             cursor: pointer;
             margin-top: 10px;
+            width: 20%;
         }
         
         .my-success {
@@ -125,11 +125,12 @@
 <body>
     <chunkify-uploader id="uploader" endpoint="http://localhost:8787/api/uplossad">
         <chunkify-drop class="my-drop">
-            <span class="my-title">Drop your file here</span>
+            <chunkify-heading class="my-title">Drop your file here</chunkify-heading>
             <chunkify-upload-button class="my-upload-btn">Upload Video</chunkify-upload-button>
             <chunkify-progress-text class="my-progress-text"></chunkify-progress-text>
             <chunkify-progress-bar class="my-progress-bar"></chunkify-progress-bar>
             <chunkify-error-message class="my-error">Error during upload</chunkify-error-message>
+            <chunkify-retry class="my-retry">Reset</chunkify-retry>
             <chunkify-success-message class="my-success">Upload successful</chunkify-success-message>
         </chunkify-drop>
     </chunkify-uploader>
@@ -143,6 +144,8 @@
         import './dist/chunkify-upload-button.js';
         import './dist/chunkify-error-message.js';
         import './dist/chunkify-success-message.js';
+        import './dist/chunkify-heading.js';
+        import './dist/chunkify-retry.js';
         
         const uploader = document.getElementById('uploader');
 

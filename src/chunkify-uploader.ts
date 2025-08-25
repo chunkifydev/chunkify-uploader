@@ -84,6 +84,7 @@ export class ChunkifyUploader extends HTMLElement {
                    --upload-button-display: none;
                    --progress-text-display: block;
                    --progress-bar-display: block;
+                   --heading-display: none;
                 }
 
                 :host([error]) {
@@ -91,6 +92,8 @@ export class ChunkifyUploader extends HTMLElement {
                     --progress-text-display: none;
                     --progress-bar-display: none;
                     --error-message-display: block;
+                    --heading-display: none;
+                    --retry-display: block;
                 }
 
                 :host([success]) {
@@ -98,6 +101,7 @@ export class ChunkifyUploader extends HTMLElement {
                     --progress-text-display: none;
                     --progress-bar-display: none;
                     --success-message-display: block;
+                    --heading-display: none;
                 }
 
             </style>
@@ -141,6 +145,10 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
+        this.addEventListener('reset', () => {
+            this.resetState();
+        });
+
        /* if (!this.noDrop) {
             this.uploadArea.addEventListener('dragover', this.handleDragOver);
             this.uploadArea.addEventListener('dragleave', this.handleDragLeave);
@@ -168,29 +176,13 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('uploading');
 
         // Reset sub-components
-        const progressTexts = this.querySelectorAll('chunkify-progress-text');
-        const progressBars = this.querySelectorAll('chunkify-progress-bar');
-        const uploadButtons = this.querySelectorAll('chunkify-upload-button');
-
-        progressTexts.forEach(component => {
-            component.setAttribute('value', '0');
-            (component as HTMLElement).style.display = 'none';
-        });
+        const progressText = this.querySelector('chunkify-progress-text');
+        const progressBar = this.querySelector('chunkify-progress-bar');
+ 
+        progressText?.setAttribute('value', '0');
+        progressBar?.setAttribute('value', '0');
         
-        progressBars.forEach(component => {
-            component.setAttribute('value', '0');
-            (component as HTMLElement).style.display = 'none';
-        });
-        
-        uploadButtons.forEach(button => {
-            (button as HTMLElement).style.display = 'block';
-        });
-
-        // Reset progress bar
-        /* this.style.setProperty('--progress', '0%');
-        this.setAttribute('progress', "0");
-        this.progressText.assignedNodes()[0]!.textContent = '0%'; */
-
+    
         // Clear error message
    
         // Reset file input
@@ -312,16 +304,11 @@ export class ChunkifyUploader extends HTMLElement {
         this.setAttribute('progress', Math.round(percent).toString());
 
         // Update sub-components directly
-        const progressTexts = this.querySelectorAll('chunkify-progress-text');
-        const progressBars = this.querySelectorAll('chunkify-progress-bar');
+        const progressTexts = this.querySelector('chunkify-progress-text');
+        const progressBars = this.querySelector('chunkify-progress-bar');
 
-        progressTexts.forEach(component => {
-            component.setAttribute('value', Math.round(percent).toString());
-        });
-        
-        progressBars.forEach(component => {
-            component.setAttribute('value', Math.round(percent).toString());
-        });
+        progressTexts?.setAttribute('value', Math.round(percent).toString());
+        progressBars?.setAttribute('value', Math.round(percent).toString());
 
         this.dispatchEvent(
             new CustomEvent('upload-progress', {
@@ -332,13 +319,6 @@ export class ChunkifyUploader extends HTMLElement {
 
     private showProgress() {
         this.setAttribute('uploading', '');
-    
-        // Hide upload buttons programmatically
-        /* const uploadButtons = this.querySelectorAll('chunkify-upload-button');
-        uploadButtons.forEach(button => {
-            (button as HTMLElement).style.display = 'none';
-        }); */
-
     
         /* if (this.currentFile) {
             const sizeInMB = (this.currentFile.size / (1024 * 1024)).toFixed(2);
