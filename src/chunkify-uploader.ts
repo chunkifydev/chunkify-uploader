@@ -135,7 +135,7 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
-        this.addEventListener('drop-file-dropped', (e) => {
+        this.addEventListener('file-dropped', (e) => {
             if (!this.isDisabled()) {
                 this.handleFile((e as CustomEvent).detail.file);
             }
