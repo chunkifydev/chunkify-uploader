@@ -96,8 +96,7 @@ export class ChunkifyUploader extends HTMLElement {
         console.log('setupEventListeners called');
         console.log('fileInput exists:', !!this.fileInput);
 
-        // NEW: Listen for sub-component upload button clicks
-        this.addEventListener('upload-button-clicked', () => {
+        this.addEventListener('file-select-clicked', () => {
             console.log('Sub-component upload button clicked');
             console.log('fileInput when clicked:', this.fileInput);
             if (!this.hasAttribute('uploading')) {
@@ -128,25 +127,7 @@ export class ChunkifyUploader extends HTMLElement {
         this.addEventListener('reset', () => {
             this.resetState();
         });
-
-       /* if (!this.noDrop) {
-            this.uploadArea.addEventListener('dragover', this.handleDragOver);
-            this.uploadArea.addEventListener('dragleave', this.handleDragLeave);
-            this.uploadArea.addEventListener('drop', this.handleDrop);
-        } */
-    
-       /*  const retrySlot = this.shadowRoot!.querySelector('slot[name="retry-button"]') as HTMLSlotElement;
-        const retryElement = retrySlot.assignedNodes()[0] as HTMLElement
-
-        if (retryElement) {
-            retryElement.addEventListener('click', (e) => {
-                e.preventDefault();
-                    e.stopPropagation();
-                    this.resetState();
-                });
-        } */
     }
-
 
     private resetState() {
         console.log('resetState called');
@@ -156,8 +137,8 @@ export class ChunkifyUploader extends HTMLElement {
         this.removeAttribute('uploading');
 
         // Reset sub-components
-        const progressText = this.querySelector('chunkify-progress-text');
-        const progressBar = this.querySelector('chunkify-progress-bar');
+        const progressText = this.querySelector('chunkify-uploader-progress-text');
+        const progressBar = this.querySelector('chunkify-uploader-progress-bar');
  
         progressText?.setAttribute('value', '0');
         progressBar?.setAttribute('value', '0');
@@ -286,11 +267,11 @@ export class ChunkifyUploader extends HTMLElement {
         this.setAttribute('progress', Math.round(percent).toString());
 
         // Update sub-components directly
-        const progressTexts = this.querySelector('chunkify-progress-text');
-        const progressBars = this.querySelector('chunkify-progress-bar');
+        const progressText = this.querySelector('chunkify-uploader-progress-text');
+        const progressBar = this.querySelector('chunkify-uploader-progress-bar');
 
-        progressTexts?.setAttribute('value', Math.round(percent).toString());
-        progressBars?.setAttribute('value', Math.round(percent).toString());
+        progressText?.setAttribute('value', Math.round(percent).toString());
+        progressBar?.setAttribute('value', Math.round(percent).toString());
 
         this.dispatchEvent(
             new CustomEvent('upload-progress', {

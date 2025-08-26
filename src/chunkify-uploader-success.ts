@@ -1,5 +1,5 @@
 // src/chunkify-success-message.ts
-export class ChunkifySuccessMessage extends HTMLElement {
+export class ChunkifyUploaderSuccess extends HTMLElement {
     static get observedAttributes() {
         return ['message'];
     }
@@ -42,4 +42,4 @@ export class ChunkifySuccessMessage extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-success-message', ChunkifySuccessMessage);
+customElements.define('chunkify-uploader-success', ChunkifyUploaderSuccess);

@@ -1,5 +1,5 @@
 // src/chunkify-drop.ts
-export class ChunkifyDrop extends HTMLElement {
+export class ChunkifyUploaderDrop extends HTMLElement {
     private uploader: HTMLElement | null = null;
     
     connectedCallback() {
@@ -66,4 +66,4 @@ export class ChunkifyDrop extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-drop', ChunkifyDrop);
+customElements.define('chunkify-uploader-drop', ChunkifyUploaderDrop);

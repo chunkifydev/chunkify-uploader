@@ -1,5 +1,5 @@
 // src/chunkify-upload-button.ts
-export class ChunkifyRetry extends HTMLElement {
+export class ChunkifyUploaderRetry extends HTMLElement {
     connectedCallback() {
         this.attachShadow({ mode: 'open' });
         this.render();
@@ -39,4 +39,4 @@ export class ChunkifyRetry extends HTMLElement {
    
 }
 
-customElements.define('chunkify-retry', ChunkifyRetry);
+customElements.define('chunkify-uploader-retry', ChunkifyUploaderRetry);

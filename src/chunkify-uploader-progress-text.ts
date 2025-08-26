@@ -1,5 +1,5 @@
 // src/chunkify-progress-text.ts
-export class ChunkifyProgressText extends HTMLElement {
+export class ChunkifyUploaderProgressText extends HTMLElement {
     static get observedAttributes() {
         return ['value'];
     }
@@ -56,4 +56,4 @@ export class ChunkifyProgressText extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-progress-text', ChunkifyProgressText);
+customElements.define('chunkify-uploader-progress-text', ChunkifyUploaderProgressText);

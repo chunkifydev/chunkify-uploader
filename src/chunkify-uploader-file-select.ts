@@ -1,5 +1,5 @@
 // src/chunkify-upload-button.ts
-export class ChunkifyUploadButton extends HTMLElement {
+export class ChunkifyUploaderFileSelect extends HTMLElement {
     connectedCallback() {
         this.attachShadow({ mode: 'open' });
         this.render();
@@ -30,7 +30,7 @@ export class ChunkifyUploadButton extends HTMLElement {
     
     private setupClick() {
         this.addEventListener('click', () => {
-            this.dispatchEvent(new CustomEvent('upload-button-clicked', {
+            this.dispatchEvent(new CustomEvent('file-select-clicked', {
                 bubbles: true
             }));
         });
@@ -44,4 +44,4 @@ export class ChunkifyUploadButton extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-upload-button', ChunkifyUploadButton);
+customElements.define('chunkify-uploader-file-select', ChunkifyUploaderFileSelect);

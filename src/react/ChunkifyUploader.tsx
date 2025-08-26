@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, FC, ReactNode, CSSProperties } from 'react';
 
-// Auto-import the web component
+
 import 'chunkify-uploader';
 
 declare global {

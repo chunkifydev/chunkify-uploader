@@ -1,5 +1,5 @@
 // src/chunkify-error-message.ts
-export class ChunkifyErrorMessage extends HTMLElement {
+export class ChunkifyUploaderError extends HTMLElement {
     static get observedAttributes() {
         return ['message'];
     }
@@ -42,4 +42,4 @@ export class ChunkifyErrorMessage extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-error-message', ChunkifyErrorMessage);
+customElements.define('chunkify-uploader-error', ChunkifyUploaderError);

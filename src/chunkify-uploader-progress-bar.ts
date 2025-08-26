@@ -1,5 +1,5 @@
 // src/chunkify-progress-bar.ts
-export class ChunkifyProgressBar extends HTMLElement {
+export class ChunkifyUploaderProgressBar extends HTMLElement {
     static get observedAttributes() {
         return ['value'];
     }
@@ -59,4 +59,4 @@ export class ChunkifyProgressBar extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-progress-bar', ChunkifyProgressBar);
+customElements.define('chunkify-uploader-progress-bar', ChunkifyUploaderProgressBar);

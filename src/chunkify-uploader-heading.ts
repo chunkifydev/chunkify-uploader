@@ -1,5 +1,5 @@
 // src/chunkify-heading.ts
-export class ChunkifyHeading extends HTMLElement {
+export class ChunkifyUploaderHeading extends HTMLElement {
     connectedCallback() {
         this.attachShadow({ mode: 'open' });
         this.render();
@@ -18,4 +18,4 @@ export class ChunkifyHeading extends HTMLElement {
     }
 }
 
-customElements.define('chunkify-heading', ChunkifyHeading);
+customElements.define('chunkify-uploader-heading', ChunkifyUploaderHeading);
