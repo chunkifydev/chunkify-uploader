@@ -10,7 +10,4 @@
     "include": [
       "src/react/**/*"
     ],
-    "exclude": [
-      "src/chunkify-uploader.ts"
-    ]
   }
