@@ -16,7 +16,6 @@ declare global {
 interface ChunkifyUploaderProps {
   endpoint?: string | (() => Promise<string>);
   maxFileSize?: number;
-  noDrop?: boolean;
   
   // Event handlers
   onFileSelected?: (event: CustomEvent) => void;
@@ -43,10 +42,7 @@ export const ChunkifyUploader: FC<ChunkifyUploaderProps> = (props) => {
     // Set properties
     if (props.endpoint !== undefined) element.endpoint = props.endpoint;
     if (props.maxFileSize !== undefined) element.maxFileSize = props.maxFileSize;
-    if (props.noDrop !== undefined) {
-      element.noDrop = props.noDrop;
-    }
-  }, [props.endpoint, props.maxFileSize, props.noDrop]);
+  }, [props.endpoint, props.maxFileSize]);
 
   useEffect(() => {
     console.log('React useEffect called');

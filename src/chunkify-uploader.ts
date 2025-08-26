@@ -1,11 +1,7 @@
 export class ChunkifyUploader extends HTMLElement {
-    static get observedAttributes() {
-        return ['no-drop'];
-    }
     private _endpoint: string | (() => Promise<string>);
     private currentFile: File | null = null;
 
-    private uploadArea!: HTMLElement;
     private fileInput!: HTMLInputElement;
     private fileInfo!: HTMLSlotElement;
 
@@ -21,13 +17,7 @@ export class ChunkifyUploader extends HTMLElement {
         this.setupEventListeners();
     }
 
-
-    attributeChangedCallback() {
-
-    }
-
     private cacheElements() {
-       // this.uploadArea = this.shadowRoot!.querySelector('.upload-area')!;
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
     }
 
@@ -57,15 +47,6 @@ export class ChunkifyUploader extends HTMLElement {
             this.removeAttribute('max-file-size');
         }
     }
-
-    get noDrop(): boolean {
-        return this.hasAttribute('no-drop');
-    }
-    
-    set noDrop(value: boolean) {
-        this.toggleAttribute('no-drop', Boolean(value));
-    }
-
     private isDisabled(): boolean {
         return this.hasAttribute('uploading') || this.hasAttribute('error') || this.hasAttribute('success');
     }
@@ -76,7 +57,6 @@ export class ChunkifyUploader extends HTMLElement {
                 :host {
                     display: flex;
                     flex-direction: column;
-                    gap: var(--gap, 8px);
                 }
                     
                 /* Hide sub-components during uploading */
@@ -209,6 +189,8 @@ export class ChunkifyUploader extends HTMLElement {
 
         // Check file size
         const maxSize = this.maxFileSize;
+        console.log('maxSize', maxSize);
+        console.log('file.size', file.size);
         if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
             console.log('File size exceeds the maximum allowed of ${maxSize} MB');
             this.setError(
