@@ -1,9 +1,10 @@
 export class ChunkifyUploader extends HTMLElement {
+    private dropListenersSetup: boolean = false;
+    static get observedAttributes() {
+        return ['drop'];
+    }
     private _endpoint: string | (() => Promise<string>);
-    private currentFile: File | null = null;
-
     private fileInput!: HTMLInputElement;
-    private fileInfo!: HTMLSlotElement;
 
     constructor() {
         super();
@@ -15,6 +16,13 @@ export class ChunkifyUploader extends HTMLElement {
         this.render();
         this.cacheElements();
         this.setupEventListeners();
+    }
+
+    attributeChangedCallback() {
+        if (this.drop && !this.dropListenersSetup)  {
+            this.setupDropListeners();
+            this.dropListenersSetup = true;
+        }
     }
 
     private cacheElements() {
@@ -49,6 +57,14 @@ export class ChunkifyUploader extends HTMLElement {
     }
     private isDisabled(): boolean {
         return this.hasAttribute('uploading') || this.hasAttribute('error') || this.hasAttribute('success');
+    }
+
+    get drop(): boolean {
+        return this.hasAttribute('drop');
+    }
+    
+    set drop(value: boolean) {
+        this.toggleAttribute('drop', Boolean(value));
     }
 
     private render() {
@@ -118,16 +134,42 @@ export class ChunkifyUploader extends HTMLElement {
             }
         });
 
-        this.addEventListener('file-dropped', (e) => {
-            if (!this.isDisabled()) {
-                this.handleFile((e as CustomEvent).detail.file);
-            }
-        });
+        if (this.hasAttribute('drop') && !this.dropListenersSetup) {
+            this.setupDropListeners();
+            this.dropListenersSetup = true;
+        }
 
         this.addEventListener('reset', () => {
             this.resetState();
         });
     }
+
+    private setupDropListeners() {
+        this.addEventListener('dragover', (e) => {
+            if (this.isDisabled()) return;
+            e.preventDefault();
+            this.setAttribute('dragover', ''); // ✅ Just set the attribute
+        });
+    
+        this.addEventListener('dragleave', (e) => {
+            if (this.isDisabled()) return;
+            if (!this.contains(e.relatedTarget as Node)) {
+                this.removeAttribute('dragover'); // ✅ Just remove the attribute
+            }
+        });
+    
+        this.addEventListener('drop', (e) => {
+            if (this.isDisabled()) return;
+            e.preventDefault();
+            this.removeAttribute('dragover');
+            
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                this.handleFile(files[0]);
+            }
+        });
+    }
+
 
     private resetState() {
         console.log('resetState called');
@@ -148,9 +190,6 @@ export class ChunkifyUploader extends HTMLElement {
    
         // Reset file input
         this.fileInput.value = '';
-
-        // Clear current file
-        this.currentFile = null;
 
         this.dispatchEvent(new CustomEvent('upload-reset', {
             bubbles: true
@@ -180,15 +219,12 @@ export class ChunkifyUploader extends HTMLElement {
             );
             return;
         }
-
-        this.currentFile = file;
-
+        
         // Dispatch file selected event immediately
         this.dispatchEvent(
             new CustomEvent('file-selected', {
                 detail: {
-                    fileName: file.name,
-                    fileSize: file.size,
+                    file: file,
                 },
             })
         );
