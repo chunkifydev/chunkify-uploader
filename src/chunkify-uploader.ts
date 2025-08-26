@@ -6,6 +6,11 @@ export class ChunkifyUploader extends HTMLElement {
     private _endpoint: string | (() => Promise<string>);
     private fileInput!: HTMLInputElement;
 
+    private _onUploadSuccess?: (event: CustomEvent) => void;
+    private _onUploadError?: (event: CustomEvent) => void;
+    private _onUploadProgress?: (event: CustomEvent) => void;
+    private _onFileSelected?: (event: CustomEvent) => void;
+
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
@@ -27,6 +32,46 @@ export class ChunkifyUploader extends HTMLElement {
 
     private cacheElements() {
         this.fileInput = this.shadowRoot!.querySelector('input[type="file"]')!;
+    }
+
+    get onUploadError() {
+        return this._onUploadError;
+    }
+
+    set onUploadProgress(handler: ((event: CustomEvent) => void) | undefined) {
+        this._onUploadProgress = handler;
+        if (handler) {
+            this.addEventListener('upload-progress', handler as EventListener);
+        }
+    }
+
+    set onUploadSuccess(handler: ((event: CustomEvent) => void) | undefined) {
+        this._onUploadSuccess = handler;
+        if (handler) {
+            this.addEventListener('upload-success', handler as EventListener);
+        }
+    }
+
+    get onUploadSuccess() {
+        return this._onUploadSuccess;
+    }
+
+    set onUploadError(handler: ((event: CustomEvent) => void) | undefined) {
+        this._onUploadError = handler;
+        if (handler) {
+            this.addEventListener('upload-error', handler as EventListener);
+        }
+    }
+
+    get onUploadProgress() {
+        return this._onUploadProgress;
+    }
+
+    set onFileSelected(handler: ((event: CustomEvent) => void) | undefined) {
+        this._onFileSelected = handler;
+        if (handler) {
+            this.addEventListener('file-selected', handler as EventListener);
+        }
     }
 
     get endpoint(): string | (() => Promise<string>) {
@@ -219,7 +264,7 @@ export class ChunkifyUploader extends HTMLElement {
             );
             return;
         }
-        
+
         // Dispatch file selected event immediately
         this.dispatchEvent(
             new CustomEvent('file-selected', {
