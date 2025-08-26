@@ -1,3 +1,11 @@
+import './chunkify-uploader-progress-text';
+import './chunkify-uploader-progress-bar';
+import './chunkify-uploader-file-select';
+import './chunkify-uploader-error';
+import './chunkify-uploader-success';
+import './chunkify-uploader-heading';
+import './chunkify-uploader-retry';
+
 export class ChunkifyUploader extends HTMLElement {
     private dropListenersSetup: boolean = false;
     static get observedAttributes() {
@@ -72,6 +80,10 @@ export class ChunkifyUploader extends HTMLElement {
         if (handler) {
             this.addEventListener('file-selected', handler as EventListener);
         }
+    }
+
+    get onFileSelected() {
+        return this._onFileSelected;
     }
 
     get endpoint(): string | (() => Promise<string>) {
@@ -384,7 +396,7 @@ export class ChunkifyUploader extends HTMLElement {
 
         this.dispatchEvent(
             new CustomEvent('upload-success', {
-                detail: { fileName: file.name },
+                detail: { file: file },
             })
         );
     }

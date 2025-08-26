@@ -59,9 +59,9 @@
     "dist/"
   ],
   "scripts": {
-    "build:esm": "esbuild src/chunkify-uploader.ts src/chunkify-uploader-progress-text.ts src/chunkify-uploader-progress-bar.ts src/chunkify-uploader-file-select.ts src/chunkify-uploader-error.ts src/chunkify-uploader-success.ts src/chunkify-uploader-heading.ts src/chunkify-uploader-retry.ts --format=esm --outdir=dist --out-extension:.js=.mjs",
-    "build:cjs": "esbuild src/chunkify-uploader.ts src/chunkify-uploader-progress-text.ts src/chunkify-uploader-progress-bar.ts src/chunkify-uploader-file-select.ts src/chunkify-uploader-error.ts src/chunkify-uploader-success.ts src/chunkify-uploader-heading.ts src/chunkify-uploader-retry.ts --format=cjs --outdir=dist --out-extension:.js=.cjs.js",
-    "build:iife": "esbuild src/chunkify-uploader.ts src/chunkify-uploader-progress-text.ts src/chunkify-uploader-progress-bar.ts src/chunkify-uploader-file-select.ts src/chunkify-uploader-error.ts src/chunkify-uploader-success.ts src/chunkify-uploader-heading.ts src/chunkify-uploader-retry.ts --format=iife --outdir=dist",
+    "build:esm": "esbuild src/chunkify-uploader.ts --format=esm --outdir=dist --out-extension:.js=.mjs --bundle",
+    "build:cjs": "esbuild src/chunkify-uploader.ts --format=cjs --outdir=dist --out-extension:.js=.cjs.js --bundle",
+    "build:iife": "esbuild src/chunkify-uploader.ts --format=iife --outdir=dist --bundle",
     "build:react": "tsc --project tsconfig.react.json",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
     "build": "npm run build:esm && npm run build:cjs && npm run build:iife && npm run build:react && npm run build:types"
