@@ -13,14 +13,12 @@ export class ChunkifyUploaderFileSelect extends HTMLElement {
                     display: var(--upload-button-display, inline-block);
                     align-items: center;
                     justify-content: center;
-                    border: 1px solid #ccc;
-                    background: #f5f5f5;
-                    padding: 8px 16px;
-                    border-radius: 4px;
+                    background:inherit;
                     font: inherit;
                     color: inherit;
                     cursor: pointer;
-                    width:40%;
+                    width:auto;
+                    height:auto;
                 }
             </style>
             
