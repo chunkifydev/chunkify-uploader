@@ -10,7 +10,7 @@ export class ChunkifyUploaderRetry extends HTMLElement {
         this.shadowRoot!.innerHTML = `
             <style>
                 :host {
-                    display: var(--upload-button-display, inline-block);
+                    display: var(--retry-display, none);
                     align-items: center;
                     justify-content: center;
                     background:inherit;
