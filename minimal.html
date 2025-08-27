@@ -1,16 +1,13 @@
+@ -0,0 +1,173 @@
 <!DOCTYPE html>
 <html>
 <head>
     <style>
         /* User's custom styling */
         chunkify-uploader {
-            width: 30%;
-            height: 100px;
-            margin: 0 auto;
-            align-items: center;
-            justify-content: center;
-            border: 2px dashed #ccc;
-            padding: 16px;
+        width: 10%;
+        align-items: center;
+        justify-content: center;
   }
         
         chunkify-uploader[error] {
@@ -22,7 +19,6 @@
             border-color: #28a745;
             background: #f8fff9;
         }
-
         chunkify-uploader[dragover] {
             border-color: #007bff;
             background: #e3f2fd;
@@ -37,17 +33,13 @@
         
         chunkify-uploader-file-select {
             background: #007bff;
-            width: 40%;
             color: white;
             border: none;
-            padding: 12px 24px;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 4px;
             cursor: pointer;
-            font-size: 16px;
-            align-self: center;
             text-align: center;
-        }
+            width: 100%;
+            }
         
         .my-upload-btn:hover {
             background: #0056b3;
@@ -95,15 +87,6 @@
             display: block;
         }
 
-        .my-progress-container {
-            display: flex;
-            width: 100%;
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
         .my-upload-btn {
             background: #007bff;
             width: 40%;
@@ -115,29 +98,31 @@
             font-size: 16px;
             align-self: center;
         }
+
+        .my-progress-container {
+            display: flex;
+            width: 100%;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
-    <chunkify-uploader id="uploader" endpoint="http://localhost:8787/api/uplossad" drop>
-        <chunkify-uploader-heading class="my-title">Drop your file here</chunkify-uploader-heading>
-            <chunkify-uploader-file-select>Select File</chunkify-uploader-file-select>
-            <div id="file-info" class="my-file-info"></div>
-            <div class="my-progress-container">
-                <chunkify-uploader-progress-bar></chunkify-uploader-progress-bar>
-                <chunkify-uploader-progress-text class="my-progress-text"></chunkify-uploader-progress-text>
-            </div>
-            <chunkify-uploader-error class="my-error">Error during upload</chunkify-uploader-error>
-            <chunkify-uploader-retry class="my-retry">Reset</chunkify-uploader-retry>
-            <chunkify-uploader-success class="my-success">Upload successful</chunkify-uploader-success>
+    <chunkify-uploader endpoint="http://localhost:8787/api/uplossad">
+        <chunkify-uploader-file-select>Select a File</chunkify-uploader-file-select>
+        <chunkify-uploader-progress-text></chunkify-uploader-progress-text>
+        <chunkify-uploader-error>Upload failed</chunkify-uploader-error>
+        <chunkify-uploader-success>Upload successful!</chunkify-uploader-success>
     </chunkify-uploader>
    
-
     <script type="module">
         import './dist/chunkify-uploader.mjs';
         
         const uploader = document.getElementById('uploader');
 
-         /* uploader.endpoint = function () {
+        /*  uploader.endpoint = function () {
             return fetch("http://localhost:8787/api/upload").then(res => res.text());
         }; */
         
@@ -145,19 +130,20 @@
         //uploader.maxFileSize = 1000;
         
         // Listen to events
-        /* uploader.addEventListener('file-selected', (e) => {
+       /*  uploader.addEventListener('file-selected', (e) => {
             console.log('File selected:', e.detail.fileName, e.detail.fileSize);
         }); */
         
+
         uploader.addEventListener('upload-progress', (e) => {
             const percent = e.detail.progress;
             console.log('Progress:', percent + '%');
             
         });
         
-        /* uploader.addEventListener('upload-success', (e) => {
+        uploader.addEventListener('upload-success', (e) => {
             console.log('Upload successful!', e.detail.fileName);
-        }); */
+        });
         
         uploader.addEventListener('upload-error', (e) => {
             console.error('Upload error:', e.detail.error + ', status code: ' + e.detail.status);
@@ -165,10 +151,9 @@
           // if (e.detail.status !== undefined) {errorText.textContent = e.detail.status;}
           if (e.detail.status === 404) {errorMsg.textContent = "Upload URL not found";}
           if (e.detail.status === 0) {errorMsg.textContent = "Network error during upload";}
-            
         });
 
-         /* uploader.onUploadError = (e) => {
+        /* uploader.onUploadError = (e) => {
             console.error('From shortcut :Upload error:', e.detail.error + ', status code: ' + e.detail.status);
         } */
 
