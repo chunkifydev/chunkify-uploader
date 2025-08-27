@@ -1,6 +1,5 @@
 // src/react/ChunkifyUploaderSuccess.tsx
 import React, { forwardRef } from 'react';
-import 'chunkify-uploader/success';
 
 declare global {
   namespace JSX {

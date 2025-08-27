@@ -1,6 +1,5 @@
 // src/react/ChunkifyUploaderProgressBar.tsx
 import React, { forwardRef } from 'react';
-import 'chunkify-uploader/progress-bar';
 
 declare global {
   namespace JSX {

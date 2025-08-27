@@ -1,6 +1,5 @@
 // src/react/ChunkifyUploaderProgressText.tsx
 import React, { forwardRef } from 'react';
-import 'chunkify-uploader/progress-text';
 
 declare global {
   namespace JSX {

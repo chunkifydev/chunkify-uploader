@@ -1,6 +1,5 @@
 // src/react/ChunkifyUploaderRetry.tsx
 import React, { forwardRef } from 'react';
-import 'chunkify-uploader/retry';
 
 declare global {
   namespace JSX {
