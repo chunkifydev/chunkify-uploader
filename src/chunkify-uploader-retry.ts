@@ -11,14 +11,8 @@ export class ChunkifyUploaderRetry extends HTMLElement {
             <style>
                 :host {
                     display: var(--retry-display, none);
-                    align-items: center;
-                    justify-content: center;
-                    background:inherit;
-                    font: inherit;
-                    color: inherit;
                     cursor: pointer;
-                    width:auto;
-                    height:auto;
+               
                 }
             </style>
             

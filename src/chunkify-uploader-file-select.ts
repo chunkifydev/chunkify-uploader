@@ -11,14 +11,7 @@ export class ChunkifyUploaderFileSelect extends HTMLElement {
             <style>
                 :host {
                     display: var(--upload-button-display, inline-block);
-                    align-items: center;
-                    justify-content: center;
-                    background:inherit;
-                    font: inherit;
-                    color: inherit;
                     cursor: pointer;
-                    width:auto;
-                    height:auto;
                 }
             </style>
             
