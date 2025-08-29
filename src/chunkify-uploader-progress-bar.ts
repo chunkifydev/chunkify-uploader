@@ -18,12 +18,13 @@ export class ChunkifyUploaderProgressBar extends HTMLElement {
             <style>
                 :host {
                     display: var(--progress-bar-display, none);
-                    width: 100%;
+                    width: var(--progress-width, 100%);
+                    height: var(--progress-height, 8px);
                 }
                 
                 .progress-container {
                     width: 100%;
-                    height: var(--progress-height, 8px);
+                    height: 100%;
                     background: var(--progress-background, #e9ecef);
                     border-radius: var(--progress-radius, 4px);
                     border: var(--progress-border, none);
