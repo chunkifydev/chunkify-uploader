@@ -10,7 +10,8 @@
             align-items: center;
             justify-content: center;
             border: 2px dashed #ccc;
-            padding: 16px;
+            padding: 8px;
+            gap: 12px;
   }
         
         chunkify-uploader[error] {
@@ -32,20 +33,17 @@
         .my-title {
             font-size: 18px;
             color: #333;
-            margin-bottom: 10px;
         }
         
         chunkify-uploader-file-select {
             background: #007bff;
-            width: 40%;
+            width: 20%;
             color: white;
-            border: none;
-            padding: 12px 24px;
-            padding: 12px;
+            padding: 8px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
-            align-self: center;
+           
             text-align: center;
         }
         
@@ -53,27 +51,22 @@
             background: #0056b3;
         }
         
-        .my-progress-text {
-            font-weight: bold;
-            color: #007bff;
-            margin-bottom: 8px;
-        }
-        
-                
+            
         .my-error {
             color: #dc3545;
             font-weight: bold;
             text-align: center;
         }
         
-        .my-retry {
+        chunkify-uploader-retry {
             background: #dc3545;
             color: white;
-            border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-top: 10px;
             width: 20%;
+            padding: 8px;
+            text-align: center;
+            align-self: center;
         }
         
         .my-success {
@@ -121,14 +114,11 @@
     <chunkify-uploader id="uploader" endpoint="http://localhost:8787/api/uplossad" drop>
         <chunkify-uploader-heading class="my-title">Drop your file here</chunkify-uploader-heading>
             <chunkify-uploader-file-select>Select File</chunkify-uploader-file-select>
-            <div id="file-info" class="my-file-info"></div>
-            <div class="my-progress-container">
-                <chunkify-uploader-progress-bar></chunkify-uploader-progress-bar>
-                <chunkify-uploader-progress-text class="my-progress-text"></chunkify-uploader-progress-text>
-            </div>
-            <chunkify-uploader-error class="my-error">Error during upload</chunkify-uploader-error>
-            <chunkify-uploader-retry class="my-retry">Reset</chunkify-uploader-retry>
-            <chunkify-uploader-success class="my-success">Upload successful</chunkify-uploader-success>
+            <chunkify-uploader-progress-bar />
+            <chunkify-uploader-progress-text></chunkify-uploader-progress-text>
+            <chunkify-uploader-error>Error during upload</chunkify-uploader-error>
+            <chunkify-uploader-retry>Reset</chunkify-uploader-retry>
+            <chunkify-uploader-success>Upload successful</chunkify-uploader-success>
     </chunkify-uploader>
    
 
@@ -172,11 +162,11 @@
             console.error('From shortcut :Upload error:', e.detail.error + ', status code: ' + e.detail.status);
         } */
 
-        uploader.onFileSelected = (e) => {
+       /*  uploader.onFileSelected = (e) => {
             const fileInfo = document.getElementById('file-info');
             const sizeInMB = (e.detail.file.size / (1024 * 1024)).toFixed(2);
             fileInfo.textContent = `Uploading: ${e.detail.file.name} (${sizeInMB} MB)`;
-        }
+        } */
 
         uploader.onUploadSuccess = (e) => {
             const success = document.querySelector('chunkify-uploader-success');
