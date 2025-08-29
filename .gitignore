@@ -1,3 +1,4 @@
+
 # Dependencies
 node_modules/
 
@@ -5,5 +6,5 @@ node_modules/
 dist/
 build/
 
-# Test files
-test-*.html 
+# HTML test files
+*.html 
