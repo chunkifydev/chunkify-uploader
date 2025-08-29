@@ -14,41 +14,6 @@
       "require": "./dist/chunkify-uploader.cjs.js",
       "default": "./dist/chunkify-uploader.cjs.js"
     },
-    "./progress-text": {
-      "import": "./dist/chunkify-uploader-progress-text.mjs",
-      "require": "./dist/chunkify-uploader-progress-text.cjs.js",
-      "default": "./dist/chunkify-uploader-progress-text.cjs.js"
-    },
-    "./progress-bar": {
-      "import": "./dist/chunkify-uploader-progress-bar.mjs",
-      "require": "./dist/chunkify-uploader-progress-bar.cjs.js",
-      "default": "./dist/chunkify-uploader-progress-bar.cjs.js"
-    },
-    "./file-select": {
-      "import": "./dist/chunkify-uploader-file-select.mjs",
-      "require": "./dist/chunkify-uploader-file-select.cjs.js",
-      "default": "./dist/chunkify-uploader-file-select.cjs.js"
-    },
-    "./error": {
-      "import": "./dist/chunkify-uploader-error.mjs",
-      "require": "./dist/chunkify-uploader-error.cjs.js",
-      "default": "./dist/chunkify-uploader-error.cjs.js"
-    },
-    "./success": {
-      "import": "./dist/chunkify-uploader-success.mjs",
-      "require": "./dist/chunkify-uploader-success.cjs.js",
-      "default": "./dist/chunkify-uploader-success.cjs.js"
-    },
-    "./heading": {
-      "import": "./dist/chunkify-uploader-heading.mjs",
-      "require": "./dist/chunkify-uploader-heading.cjs.js",
-      "default": "./dist/chunkify-uploader-heading.cjs.js"
-    },
-    "./retry": {
-      "import": "./dist/chunkify-uploader-retry.mjs",
-      "require": "./dist/chunkify-uploader-retry.cjs.js",
-      "default": "./dist/chunkify-uploader-retry.cjs.js"
-    },
     "./react": {
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.js",
@@ -59,12 +24,10 @@
     "dist/"
   ],
   "scripts": {
-    "build:esm": "esbuild src/chunkify-uploader.ts --format=esm --outdir=dist --out-extension:.js=.mjs --bundle",
-    "build:cjs": "esbuild src/chunkify-uploader.ts --format=cjs --outdir=dist --out-extension:.js=.cjs.js --bundle",
-    "build:iife": "esbuild src/chunkify-uploader.ts --format=iife --outdir=dist --bundle",
-    "build:react": "tsc --project tsconfig.react.json",
+    "build:web": "node plugins/build-with-ssr-guards.js",
+    "build:react": "esbuild src/react/index.ts --target=es2019 --bundle --format=esm --outdir=dist/react --external:react --external:react-dom",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
-    "build": "npm run build:esm && npm run build:cjs && npm run build:iife && npm run build:react && npm run build:types"
+    "build": "npm run build:web && npm run build:react && npm run build:types"
   },
   "keywords": [
     "upload",
