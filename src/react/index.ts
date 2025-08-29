@@ -1,3 +1,6 @@
+'use client';
+import 'chunkify-uploader';
+
 export { ChunkifyUploader } from './ChunkifyUploader';
 export { ChunkifyUploaderProgressText } from './ChunkifyUploaderProgressText';
 export { ChunkifyUploaderProgressBar } from './ChunkifyUploaderProgressBar';

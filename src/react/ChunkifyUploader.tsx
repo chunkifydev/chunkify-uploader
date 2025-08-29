@@ -1,7 +1,6 @@
+'use client';
 import React, { useRef, useEffect, FC, ReactNode, CSSProperties } from 'react';
-
-
-import 'chunkify-uploader';
+//import 'chunkify-uploader';
 
 declare global {
   namespace JSX {
@@ -47,7 +46,6 @@ export const ChunkifyUploader: FC<ChunkifyUploaderProps> = (props) => {
   }, [props.endpoint, props.maxFileSize, props.drop]);
 
   useEffect(() => {
-    console.log('React useEffect called');
     if (!ref.current) return;
     
     const element = ref.current;
