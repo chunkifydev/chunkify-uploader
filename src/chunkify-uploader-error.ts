@@ -8,11 +8,7 @@ export class ChunkifyUploaderError extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this.render();
     }
-    
-    attributeChangedCallback() {
-        this.updateMessage();
-    }
-    
+      
     private render() {
         this.shadowRoot!.innerHTML = `
             <style>
@@ -24,20 +20,11 @@ export class ChunkifyUploaderError extends HTMLElement {
         `;
     }
     
-    private updateMessage() {
-        const message = this.getAttribute('message');
-        if (message) {
-            // Set text content directly on the host
-            this.textContent = message;
-        }
-    }
-    
     setMessage(message: string) {
-        this.setAttribute('message', message);
+        this.textContent = message;
     }
     
     clear() {
-        this.removeAttribute('message');
         this.textContent = '';
     }
 }

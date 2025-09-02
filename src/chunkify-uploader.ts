@@ -397,7 +397,7 @@ export class ChunkifyUploader extends HTMLElement {
         // If the user provided a slot but empty it means they want to display the original message that is passed here as parameters
         if (statusCode < 0) {
             //  Find and update error message component
-            const errorMessage = this.querySelector('chunkify-error-message');
+            const errorMessage = this.querySelector('chunkify-uploader-error');
             if (errorMessage) {
                 (errorMessage as any).setMessage(message);
             }
