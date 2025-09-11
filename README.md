@@ -476,7 +476,7 @@ Here a basic example of how to do that :
 
 In the example above the error message will be "Error during the upload" except if the status code is 404 in which case it will display "Upload URL not found".
 
-#### Displayinf file information
+#### Display file information
 
 When your user select a file or when the upload completes successfully, you have access to the File object through the event.
 Here is an example on how you can display these infos during the upload and on upload success, we added a ".my-file-info" div to display the info about the file that is `dsiplay: none`by default and that we set on `display: block` when the upload is in progress.
@@ -558,5 +558,7 @@ Listen for specific events:
 
 #### 4. Store information about the upload
 Once the upload is completed and you receive the event, you can save the `source_id` found in the `upload.completed` event payload associating it with a relevant entity in your application.
+
+
 
 > **💡 Tip:** You can pass metadata during upload creation to help with your workflow. Any metadata you include in the upload will be automatically copied to the source metadata. For example, If you want to link a source to a specific user, include the `user_id` in the upload metadata. This `user_id` will then be available in the source metadata, making it easy to track which user uploaded which content.
