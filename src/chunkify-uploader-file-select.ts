@@ -10,9 +10,10 @@ export class ChunkifyUploaderFileSelect extends HTMLElement {
         this.shadowRoot!.innerHTML = `
             <style>
                 :host {
-                    display: var(--upload-button-display, inline-block);
+                    display: var(--file-select-display, block);
                     cursor: pointer;
                 }
+                    
             </style>
             
             <slot>Select File</slot>

@@ -134,14 +134,14 @@ export class ChunkifyUploader extends HTMLElement {
                     
                 /* Hide sub-components during uploading */
                 :host([uploading]) {
-                   --upload-button-display: none;
+                   --file-select-display: none;
                    --progress-text-display: block;
                    --progress-bar-display: block;
                    --heading-display: none;
                 }
 
                 :host([error]) {
-                    --upload-button-display: none;
+                    --file-select-display: none;
                     --progress-text-display: none;
                     --progress-bar-display: none;
                     --error-message-display: block;
@@ -150,7 +150,7 @@ export class ChunkifyUploader extends HTMLElement {
                 }
 
                 :host([success]) {
-                    --upload-button-display: none;
+                    --file-select-display: none;
                     --progress-text-display: none;
                     --progress-bar-display: none;
                     --success-message-display: block;
