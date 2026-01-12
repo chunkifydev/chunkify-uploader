@@ -1,6 +1,5 @@
 'use client';
 import React, { useRef, useEffect, FC, ReactNode, CSSProperties } from 'react';
-//import 'chunkify-uploader';
 
 declare global {
   namespace JSX {
