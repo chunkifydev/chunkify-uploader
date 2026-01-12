@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Source files
+src/
+plugins/
+*.html
+tsconfig*.json
+
+# Development files
+.git/
+.gitignore
+README.md
