@@ -9,7 +9,7 @@ import './chunkify-uploader-retry';
 export class ChunkifyUploader extends HTMLElement {
     private dropListenersSetup: boolean = false;
     static get observedAttributes() {
-        return ['drop'];
+        return ['drop','endpoint'];
     }
     private _endpoint: string | (() => Promise<string>);
     private fileInput!: HTMLInputElement;
@@ -31,8 +31,13 @@ export class ChunkifyUploader extends HTMLElement {
         this.setupEventListeners();
     }
 
-    attributeChangedCallback() {
-        if (this.drop && !this.dropListenersSetup)  {
+    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        if (name === 'endpoint') {
+            // Handle endpoint change specifically
+            this._endpoint = newValue || '';
+        }
+        if (name === 'drop' && this.drop && !this.dropListenersSetup) {
+            // Handle drop change specifically
             this.setupDropListeners();
             this.dropListenersSetup = true;
         }
@@ -244,8 +249,9 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private async handleFile(file: File) {
+        const endpoint = this.endpoint;
         // Check endpoint early
-        if (!this._endpoint) {
+        if (!endpoint) {
             console.error('No endpoint attribute provided. Please set endpoint attribute/property.');
             this.setError(
                 'No endpoint attribute provided. Please set endpoint attribute/property.',
