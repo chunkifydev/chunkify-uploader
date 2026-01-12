@@ -21,13 +21,13 @@ Chunkify Uploader supports:
 ### Install via NPM
 
 ```bash
-npm install @chunkify/chunkify-uploader@latest
+npm install @chunkify/uploader@latest
 ```
 
 ### Hosted
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@chunkify/chunkify-uploader"></script>
+<script src="https://cdn.jsdelivr.net/npm/@chunkify/uploader"></script>
 ```
 
 
@@ -62,7 +62,7 @@ Here is a simple implementation with some simple CSS styling with a drop zone av
     }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/@chunkify/chunkify-uploader"></script>
+<script src="https://cdn.jsdelivr.net/npm/@chunkify/uploader"></script>
 
 <chunkify-uploader endpoint="https://your.presign.upload.url" drop>
     <chunkify-uploader-file-select>Select a file</chunkify-uploader-file-select>
@@ -333,7 +333,7 @@ Here is a very basic uploader component example with just a button to upload a f
 
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/@chunkify/chunkify-uploader"></script>
+<script src="https://cdn.jsdelivr.net/npm/@chunkify/uploader"></script>
 
 <chunkify-uploader endpoint="https://your.presign.upload.url">
     <chunkify-uploader-file-select>Select a File</chunkify-uploader-file-select>

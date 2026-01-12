@@ -1,5 +1,5 @@
 'use client';
-import 'chunkify-uploader';
+import '@chunkify/uploader';
 
 export { ChunkifyUploader } from './ChunkifyUploader';
 export { ChunkifyUploaderProgressText } from './ChunkifyUploaderProgressText';
