@@ -62,12 +62,12 @@ Here is a simple implementation with some simple CSS styling with a drop zone av
     }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/@chunkify/uploader"></script>
+<script src="https://cdn.jsdelivr.net/npm/@chunkify/uploader@latest"></script>
 
 <chunkify-uploader endpoint="https://your.presign.upload.url" drop>
     <chunkify-uploader-file-select>Select a file</chunkify-uploader-file-select>
     <chunkify-uploader-progress-text></chunkify-uploader-progress-text>
-    <chunkify-uploader-progress-bar></chunkify-uploader-error-bar>
+    <chunkify-uploader-progress-bar></chunkify-uploader-progress-bar>
     <chunkify-uploader-error>Upload Error</chunkify-uploader-error>
     <chunkify-uploader-success>Upload Success!</chunkify-uploader-success>
 </chunkify-uploader>
