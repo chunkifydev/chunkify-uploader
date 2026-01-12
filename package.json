@@ -1,6 +1,6 @@
 {
   "name": "@chunkify/uploader",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A file upload web component",
   "main": "./dist/chunkify-uploader.cjs.js",
   "module": "./dist/chunkify-uploader.mjs",
@@ -15,12 +15,14 @@
     ".": {
       "import": "./dist/chunkify-uploader.mjs",
       "require": "./dist/chunkify-uploader.cjs.js",
-      "default": "./dist/chunkify-uploader.cjs.js"
+      "default": "./dist/chunkify-uploader.cjs.js",
+      "types": "./dist/types/chunkify-uploader.d.ts"
     },
     "./react": {
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.js",
-      "default": "./dist/react/index.js"
+      "default": "./dist/react/index.js",
+      "types": "./dist/types/react/index.d.ts"
     }
   },
   "files": [
