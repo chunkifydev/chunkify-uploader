@@ -14,7 +14,7 @@ Chunkify Uploader supports:
 - Drag and drop for files
 - Full UI Customization
 
-***Important:***A React component is also available check the full documentation here to see how to use it.
+> ⚠️ **Important:** A React component is also available. Check the [full documentation](https://chunkify.dev/docs/integration/uploader) to see how to use it.
 
 ## Getting started
 
@@ -32,7 +32,6 @@ npm install @chunkify/uploader@latest
 
 
 ### Example
-
 
 The CSS styling by default is very minimal so you will have to provide your own [styling](./customize) to make it looks good.
 
@@ -133,7 +132,7 @@ Since upload URLs are temporary and should be generated per upload, you'll need 
 ```javascript Express.js
 
 import { RequestHandler } from 'express';
-import { createClient, ChunkifyAPIError } from 'chunkify';
+import { Chunkify } from '@chunkify/chunkify';
 import express from 'express';
 import cors from 'cors';
 
@@ -152,17 +151,20 @@ app.use(express.static('public'));
 
 const uploadHandler: RequestHandler = async (req, res) => {
     try{
-        const client = createClient({
-            projectToken: 'your_project_token',
+        const client = new Chunkify({
+            projectAccessToken:'your_project_token',
         });
         // Create the upload entry
-        const upload = await client.upload.create({})
+        const upload = await client.uploads.create({})
         // Return the upload URL
         res.send(upload.upload_url);
     } catch (error)  {
         // Handle errors if any
-        const chunkifyError = error as ChunkifyAPIError;
-        res.status(chunkifyError.error.code || 500).json({ error: chunkifyError.message });
+        if (error instanceof Chunkify.APIError) {
+            res.status(error.status || 500).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+        }
     }
 };
 
@@ -171,7 +173,7 @@ app.post('/api/upload', uploadHandler);
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
 
 ```

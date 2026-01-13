@@ -10,4 +10,3 @@ tsconfig*.json
 # Development files
 .git/
 .gitignore
-README.md
