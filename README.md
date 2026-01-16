@@ -481,7 +481,7 @@ In the example above the error message will be "Error during the upload" except 
 #### Display file information
 
 When your user select a file or when the upload completes successfully, you have access to the File object through the event.
-Here is an example on how you can display these infos during the upload and on upload success, we added a ".my-file-info" div to display the info about the file that is `dsiplay: none`by default and that we set on `display: block` when the upload is in progress.
+Here is an example on how you can display these infos during the upload and on upload success, we added a ".my-file-info" div to display the info about the file that is `display: none`by default and that we set on `display: block` when the upload is in progress.
 
 ***Note:*** You will need to to use the `uploading` attribute to display the info only
     during the upload process.
