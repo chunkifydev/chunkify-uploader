@@ -4,96 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chunkify Uploader Test</title>
-</head>
-<body> 
-    <!-- Your component with your endpoint -->
-     
-    <chunkify-uploader max-file-size="300" no-retry>
-        <div slot="title">Upload a video or audio file</div>
-        <div slot="upload-button" class="my-upload-btn">Upload</div>
-        <div slot="error-message" class="my-error">File upload failed.</div>
-        <div slot="success-message" class="my-success">File uploaded successfully.</div>
-    </chunkify-uploader>
-
     <style>
-        chunkify-uploader {
-            width: 40%;
-            margin: 0 auto;
-            border: 1px solid #ccc;
-        }
-
-        .my-upload-btn {
-          background: lightblue;
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 16px;
-          margin-top: 20px;
-        }
-
-        .my-upload-btn:hover {
-          background: blue;
-        }
-
-        .my-error {
-            color: hotpink; 
-        }
-
-        .my-success {
-            color: green;
-        }
-
+        body { font: 16px system-ui; padding: 24px; }
+        chunkify-uploader { max-width: 480px; margin: 0 auto; padding: 24px; border: 2px dashed #ccc; gap: 16px; text-align: center; }
+        chunkify-uploader-file-select, chunkify-uploader-retry { padding: 12px; background: #def; border-radius: 8px; }
+        chunkify-uploader-error { color: #a00; }
+        #logs { white-space: pre-wrap; overflow-wrap: anywhere; }
     </style>
-    
-    <!-- Event listeners to see what's happening -->
-    <div id="logs"></div>
-    
+</head>
+<body>
+    <p>Serve this file after building the package. Configure your backend at /api/uploads to return an upload session.</p>
+    <chunkify-uploader max-file-size="300" drop>
+        <chunkify-uploader-heading>Upload a video or audio file</chunkify-uploader-heading>
+        <chunkify-uploader-file-select>Select a file</chunkify-uploader-file-select>
+        <chunkify-uploader-progress-text></chunkify-uploader-progress-text>
+        <chunkify-uploader-progress-bar></chunkify-uploader-progress-bar>
+        <chunkify-uploader-error>Upload failed. Please try again.</chunkify-uploader-error>
+        <chunkify-uploader-retry>Retry</chunkify-uploader-retry>
+        <chunkify-uploader-success>Upload complete!</chunkify-uploader-success>
+    </chunkify-uploader>
+    <pre id="logs"></pre>
     <script type="module">
-        import './dist/chunkify-uploader.js';
-        
+        import './dist/chunkify-uploader.mjs';
         const uploader = document.querySelector('chunkify-uploader');
-        const logs = document.getElementById('logs');
-        const errorText = document.getElementById('errortxt');
-
-        uploader.endpoint = function () {
-        return fetch("https://localhost:8787/api/upload")
-            .then(res => {
-                if (!res.ok) {
-                    throw { message: `HTTP ${res.status}: ${res.statusText}`, status: res.status };
-                }
-                return res.text();
-            })
-            .catch(error => {
-                if (error.status) {
-                    throw error; // Keep the original status
-                }
-                // Network errors don't have status, so default to 0
-                throw { message: error.message, status: 0 };
+        uploader.upload = async (file) => {
+            const response = await fetch('/api/uploads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file.name }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                const message = result.error?.message || result.error || 'Could not create an upload session.';
+                throw Object.assign(new Error(message), { status: response.status });
+            }
+            return result;
+        };
+        for (const name of ['file-selected', 'upload-progress', 'upload-success', 'upload-error', 'upload-reset']) {
+            uploader.addEventListener(name, (event) => {
+                const detail = JSON.stringify(event.detail, (key, value) =>
+                    value instanceof File ? { name: value.name, size: value.size, type: value.type } : value,
+                    2
+                );
+                document.querySelector('#logs').textContent += event.detail == null
+                    ? `${name}\n\n`
+                    : `${name}: ${detail}\n\n`;
             });
         }
-        
-        // Listen for events
-        uploader.addEventListener('upload-progress', (e) => {
-            console.log('Progress:', e.detail.progress);
-            logs.innerHTML += `<p>Progress: ${e.detail.progress}%</p>`;
-        });
-        
-        uploader.addEventListener('upload-complete', (e) => {
-            console.log('Upload complete:', e.detail);
-            logs.innerHTML += `<p>✅ Upload complete: ${e.detail.fileName}</p>`;
-        });
-        
-        uploader.addEventListener('upload-error', (e) => {
-            console.error('Upload error:', e.detail.error + ' and status code: ' + e.detail.status);
-            logs.innerHTML += `<p>❌ Error: ${e.detail.error}</p>`;
-            
-          // if (e.detail.status !== undefined) {errorText.textContent = e.detail.status;}
-          if (e.detail.status === 404) {errorText.textContent = "Upload URL not found";}
-          if (e.detail.status === 0) {errorText.textContent = "Network error during upload";}
-            
-        });
     </script>
 </body>
 </html>
