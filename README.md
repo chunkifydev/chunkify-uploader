@@ -85,8 +85,6 @@ Here is a simple implementation with some simple CSS styling with a drop zone av
 
 ## Setup
 
-The `upload` property replaces the old `endpoint` URL. Use a component release with completion support; older PUT-only versions do not support the current Uploads API.
-
 Chunkify Uploader accepts a session from the Chunkify Uploads API through the `upload` JavaScript property. The session contains `upload_url` and `completion_url`.
 
 Provide a fresh session for each file. You can supply an existing session object or a function that creates one after file selection.
@@ -330,7 +328,7 @@ The error message will be displayed in both cases where the component `<chunkify
 
 ## Styles
 
-The examples below assume you have configured the `upload` property as shown in [Setup](#setup). Their styling and custom messages work as before.
+The examples below assume you have configured the `upload` property as shown in [Setup](#setup).
 
 Chunkify Uploader web component is built to be fully customizable to match you project design. It comes with sub components that you will need to use to and style.
 
@@ -592,7 +590,7 @@ The workflow goes generally like this:
 - Create an upload session using Chunkify API.
 - Save relevant information in your database, the upload ID for example.
 - Pass the session to the `upload` property of the Chunkify Uploader (see [Setup](#setup) section).
-- The component sends the file with PUT, then calls the completion URL with POST. S3 object-created events no longer complete the Upload.
+- The component sends the file with PUT, then calls the completion URL with POST.
 
 #### 3. Handle webhooks events
 Listen for specific events:
