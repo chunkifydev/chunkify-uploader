@@ -37,6 +37,8 @@ The CSS styling by default is very minimal so you will have to provide your own 
 
 Here is a simple implementation with some simple CSS styling with a drop zone available, a file select button, a progress bar and text, an error and finally a success message.
 
+`/your-api/create-upload-session` is a placeholder for a route you implement in your application. That route calls the Chunkify API using your project token and returns `upload_url` and `completion_url`. Replace this path with your own backend route.
+
 ```html HTML
 <style>
     chunkify-uploader {
@@ -74,7 +76,7 @@ Here is a simple implementation with some simple CSS styling with a drop zone av
 <script>
   const chunkifyUploader = document.querySelector('chunkify-uploader');
   chunkifyUploader.upload = function (file) {
-    return fetch('/api/upload', { method: 'POST' })
+    return fetch('/your-api/create-upload-session', { method: 'POST' })
       .then(res => {
         if (!res.ok) throw new Error('Could not create an upload session.');
         return res.json();
@@ -129,7 +131,7 @@ Depending on your workflow, you might want to create the session after the user 
       Your server returns { upload_url, completion_url }.
       Use file.name here if your backend needs it to choose an object path.
     */
-    return fetch("/api/upload", { method: "POST" })
+    return fetch("/your-api/create-upload-session", { method: "POST" })
     .then(res => {
       if (!res.ok) throw new Error('Could not create an upload session.');
       return res.json();
@@ -191,7 +193,7 @@ const uploadHandler = async (req, res) => {
 };
 
 // Set the route
-app.post('/api/upload', uploadHandler);
+app.post('/your-api/create-upload-session', uploadHandler);
 
 // Start the server
 app.listen(PORT, () => {
