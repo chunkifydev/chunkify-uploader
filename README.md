@@ -150,7 +150,6 @@ Since sessions are temporary and belong to one file, create them on demand. Here
 
 ```javascript Express.js
 
-import { RequestHandler } from 'express';
 import express from 'express';
 import cors from 'cors';
 
@@ -167,7 +166,7 @@ const PORT = 8787;
 app.use(express.json());
 app.use(express.static('public'));
 
-const uploadHandler: RequestHandler = async (req, res) => {
+const uploadHandler = async (req, res) => {
     try{
         // Create the upload entry using the project's default storage.
         const response = await fetch('https://api.chunkify.dev/v1/api/uploads', {
