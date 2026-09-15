@@ -1,6 +1,6 @@
 {
   "name": "@chunkify/uploader",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "description": "A file upload web component",
   "main": "./dist/chunkify-uploader.cjs.js",
   "module": "./dist/chunkify-uploader.mjs",
