@@ -2,16 +2,35 @@ import './chunkify-uploader-progress-text';
 import './chunkify-uploader-progress-bar';
 import './chunkify-uploader-file-select';
 import './chunkify-uploader-error';
+import type { ChunkifyUploaderError } from './chunkify-uploader-error';
 import './chunkify-uploader-success';
 import './chunkify-uploader-heading';
 import './chunkify-uploader-retry';
 
+export interface UploadSession {
+    upload_url: string;
+    completion_url: string;
+}
+
+export type UploadProvider = UploadSession | ((file: File) => Promise<UploadSession>);
+export interface UploadSuccessDetail { file: File; }
+export interface UploadErrorDetail { error: string; status: number; }
+
+class UploadRequestError extends Error {
+    constructor(message: string, readonly status: number = 0, readonly retryAfter: number = 0) {
+        super(message);
+    }
+}
+
 export class ChunkifyUploader extends HTMLElement {
     private dropListenersSetup: boolean = false;
     static get observedAttributes() {
-        return ['drop','endpoint'];
+        return ['drop'];
     }
-    private _endpoint: string | (() => Promise<string>);
+    private _upload?: UploadProvider;
+    private operation?: AbortController;
+    private initialized = false;
+    private usedSessions = new Set<string>();
     private fileInput!: HTMLInputElement;
 
     private _onUploadSuccess?: (event: CustomEvent) => void;
@@ -22,22 +41,23 @@ export class ChunkifyUploader extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this._endpoint = this.getAttribute('endpoint') || '';
     }
 
     connectedCallback() {
-        this.render();
-        this.cacheElements();
-        this.setupEventListeners();
+        if (!this.initialized) {
+            this.render();
+            this.cacheElements();
+            this.setupEventListeners();
+            this.initialized = true;
+        }
     }
 
-    attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-        if (name === 'endpoint') {
-            // Handle endpoint change specifically
-            this._endpoint = newValue || '';
-        }
+    disconnectedCallback() {
+        if (this.operation) this.resetState();
+    }
+
+    attributeChangedCallback(name: string) {
         if (name === 'drop' && this.drop && !this.dropListenersSetup) {
-            // Handle drop change specifically
             this.setupDropListeners();
             this.dropListenersSetup = true;
         }
@@ -52,6 +72,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     set onUploadProgress(handler: ((event: CustomEvent) => void) | undefined) {
+        if (this._onUploadProgress) this.removeEventListener('upload-progress', this._onUploadProgress as EventListener);
         this._onUploadProgress = handler;
         if (handler) {
             this.addEventListener('upload-progress', handler as EventListener);
@@ -59,6 +80,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     set onUploadSuccess(handler: ((event: CustomEvent) => void) | undefined) {
+        if (this._onUploadSuccess) this.removeEventListener('upload-success', this._onUploadSuccess as EventListener);
         this._onUploadSuccess = handler;
         if (handler) {
             this.addEventListener('upload-success', handler as EventListener);
@@ -70,6 +92,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     set onUploadError(handler: ((event: CustomEvent) => void) | undefined) {
+        if (this._onUploadError) this.removeEventListener('upload-error', this._onUploadError as EventListener);
         this._onUploadError = handler;
         if (handler) {
             this.addEventListener('upload-error', handler as EventListener);
@@ -81,6 +104,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     set onFileSelected(handler: ((event: CustomEvent) => void) | undefined) {
+        if (this._onFileSelected) this.removeEventListener('file-selected', this._onFileSelected as EventListener);
         this._onFileSelected = handler;
         if (handler) {
             this.addEventListener('file-selected', handler as EventListener);
@@ -91,18 +115,12 @@ export class ChunkifyUploader extends HTMLElement {
         return this._onFileSelected;
     }
 
-    get endpoint(): string | (() => Promise<string>) {
-        return this.getAttribute('endpoint') ?? this._endpoint;
+    get upload(): UploadProvider | undefined {
+        return this._upload;
     }
 
-    set endpoint(value: string | (() => Promise<string>)) {
-        if (value === this._endpoint) return;
-        if (typeof value === 'string') {
-            this.setAttribute('endpoint', value);
-        } else if (value == undefined) {
-            this.removeAttribute('endpoint');
-        }
-        this._endpoint = value;
+    set upload(value: UploadProvider | undefined) {
+        this._upload = value;
     }
 
     get maxFileSize(): number {
@@ -172,7 +190,7 @@ export class ChunkifyUploader extends HTMLElement {
 
     private setupEventListeners() {
         this.addEventListener('file-select-clicked', () => {
-            if (!this.hasAttribute('uploading')) {
+            if (!this.isDisabled()) {
                 this.fileInput.click();
             }
         });
@@ -202,20 +220,20 @@ export class ChunkifyUploader extends HTMLElement {
 
     private setupDropListeners() {
         this.addEventListener('dragover', (e) => {
-            if (this.isDisabled()) return;
+            if (!this.drop || this.isDisabled()) return;
             e.preventDefault();
             this.setAttribute('dragover', ''); // Just set the attribute
         });
     
         this.addEventListener('dragleave', (e) => {
-            if (this.isDisabled()) return;
+            if (!this.drop || this.isDisabled()) return;
             if (!this.contains(e.relatedTarget as Node)) {
                 this.removeAttribute('dragover'); // Just remove the attribute
             }
         });
     
         this.addEventListener('drop', (e) => {
-            if (this.isDisabled()) return;
+            if (!this.drop || this.isDisabled()) return;
             e.preventDefault();
             this.removeAttribute('dragover');
             
@@ -228,6 +246,9 @@ export class ChunkifyUploader extends HTMLElement {
 
 
     private resetState() {
+        this.operation?.abort();
+        this.operation = undefined;
+        this.removeAttribute('progress');
         this.removeAttribute('dragover');
         this.removeAttribute('error');
         this.removeAttribute('success');
@@ -249,105 +270,137 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     private async handleFile(file: File) {
-        const endpoint = this.endpoint;
-        // Check endpoint early
-        if (!endpoint) {
-            console.error('No endpoint attribute provided. Please set endpoint attribute/property.');
-            this.setError(
-                'No endpoint attribute provided. Please set endpoint attribute/property.',
-                -1
-            );
+        if (this.isDisabled()) return;
+        if (!this.upload) {
+            this.setError('No upload session provider configured.', -1);
             return;
         }
-
-        // Check file size
         const maxSize = this.maxFileSize;
-
         if (maxSize > 0 && file.size > maxSize * 1024 * 1024) {
-            console.error('File size exceeds the maximum allowed of ${maxSize} MB');
-            this.setError(
-                `File size exceeds the maximum allowed of ${maxSize} MB`,
-                -2
-            );
+            this.setError(`File size exceeds the maximum allowed of ${maxSize} MB`, -2);
             return;
         }
 
-        // Dispatch file selected event immediately
-        this.dispatchEvent(
-            new CustomEvent('file-selected', {
-                detail: {
-                    file: file,
-                },
-            })
-        );
+        const operation = new AbortController();
+        this.operation = operation;
+        const { signal } = operation;
+        this.setAttribute('uploading', '');
+        this.dispatchEvent(new CustomEvent('file-selected', { detail: { file } }));
 
         try {
-            // Get URL fist
-            const uploadUrl = await this.getUploadUrl();
-            this.showProgress();
-            // Upload File
-            await this.uploadToUrl(file, uploadUrl);
-            this.setSuccess(file);
+            signal.throwIfAborted();
+            const upload = this.upload;
+            const session = typeof upload === 'function' ? await upload(file) : upload;
+            signal.throwIfAborted();
+            this.validateSession(session);
+            this.usedSessions.add(session.completion_url);
+            await this.uploadFile(file, session, signal);
+            signal.throwIfAborted();
+            this.updateProgress(100);
+            await this.completeUpload(session, signal);
+            signal.throwIfAborted();
+            this.operation = undefined;
+            this.removeAttribute('uploading');
+            this.setAttribute('success', '');
+            this.dispatchEvent(new CustomEvent<UploadSuccessDetail>('upload-success', {
+                detail: { file },
+            }));
         } catch (error) {
-            console.error('Error during upload:', error);
-            const errorMessage =(error as any).message || (error as Error).message;
-            const statusCode = (error as any).status;
-            this.setError(errorMessage, statusCode);
+            if (signal.aborted) return;
+            this.operation = undefined;
+            const failure = error as { message?: unknown; status?: unknown } | null;
+            const message = typeof failure?.message === 'string' ? failure.message : 'Upload failed';
+            const status = typeof failure?.status === 'number' ? failure.status : 0;
+            this.setError(message, status);
         }
     }
 
-
-    private async getUploadUrl(): Promise<string> {
-        const endpoint = this._endpoint;
-        
-        // Get URL (function or direct string)
-        const url = typeof endpoint === 'function' ? await endpoint() : endpoint;
-        
-        // Validate URL
-        try {
-            new URL(url);
-        } catch (urlError) {
-            throw new Error(`Invalid upload URL`);
+    private validateSession(session: UploadSession | undefined): asserts session is UploadSession {
+        if (!session) {
+            throw new UploadRequestError('Invalid upload session. Expected upload_url and completion_url.', -1);
         }
-        
-        return url;
+        for (const url of [session.upload_url, session.completion_url]) {
+            try {
+                if (!['https:', 'http:'].includes(new URL(url).protocol)) throw new Error();
+            } catch {
+                throw new UploadRequestError('Invalid upload session URL.', -1);
+            }
+        }
+        if (this.usedSessions.has(session.completion_url)) {
+            throw new UploadRequestError('This upload session has already been used. Provide a new session.', -1);
+        }
     }
 
-    private async uploadToUrl(file: File, uploadUrl: string) {
+    private uploadFile(file: File, session: UploadSession, signal: AbortSignal): Promise<void> {
         return new Promise((resolve, reject) => {
+            signal.throwIfAborted();
             const xhr = new XMLHttpRequest();
-
+            const abort = () => xhr.abort();
+            const finish = (error?: UploadRequestError) => {
+                signal.removeEventListener('abort', abort);
+                error ? reject(error) : resolve();
+            };
             xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentComplete = (event.loaded / event.total) * 100;
-                    this.updateProgress(percentComplete);
+                if (!signal.aborted && event.lengthComputable) {
+                    this.updateProgress(event.loaded / event.total * 100);
                 }
             };
-
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    resolve(xhr.response);
-                } else {
-                    reject({
-                        message: `Upload failed with status: ${xhr.status}`,
-                        status: xhr.status,
-                    });
-                }
-            };
-
-            xhr.onerror = () =>
-                reject({
-                    message: 'Network error during upload',
-                    status: xhr.status,
-                });
-            xhr.ontimeout = () =>
-                reject({ message: 'Upload timed out', status: xhr.status });
-
-            xhr.open('PUT', uploadUrl);
+            xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+                ? finish()
+                : finish(new UploadRequestError(`Upload failed with status: ${xhr.status}`, xhr.status));
+            xhr.onerror = () => finish(new UploadRequestError('Network error during upload.'));
+            xhr.onabort = () => finish(new UploadRequestError('Upload cancelled.'));
+            xhr.open('PUT', session.upload_url);
             xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-            xhr.timeout = 30000; // 30 second timeout
+            signal.addEventListener('abort', abort, { once: true });
             xhr.send(file);
         });
+    }
+
+    private async completeUpload(session: UploadSession, signal: AbortSignal) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            signal.throwIfAborted();
+            const controller = new AbortController();
+            const abort = () => controller.abort();
+            const timeout = setTimeout(abort, 30000);
+            signal.addEventListener('abort', abort, { once: true });
+            let failure: UploadRequestError;
+            try {
+                const response = await fetch(session.completion_url, {
+                    method: 'POST', credentials: 'omit', signal: controller.signal,
+                });
+                if (response.status === 204) return;
+                let message = `Upload completion failed with status: ${response.status}`;
+                try {
+                    const body = await response.json();
+                    if (typeof body?.error?.message === 'string') message = body.error.message;
+                } catch { /* Proxies may return errors without a JSON body. */ }
+                const retryAfter = response.headers.get('Retry-After');
+                const delay = retryAfter === null ? 0 : /^\d+$/.test(retryAfter)
+                    ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now()) || 0;
+                failure = new UploadRequestError(message, response.status, delay);
+            } catch {
+                failure = new UploadRequestError('Could not confirm upload completion.');
+            } finally {
+                clearTimeout(timeout);
+                signal.removeEventListener('abort', abort);
+            }
+            signal.throwIfAborted();
+            const retryable = failure.status === 0 || failure.status === 429 || failure.status >= 500;
+            const delay = Math.max(500 * 2 ** attempt, failure.retryAfter);
+            if (!retryable || attempt === 2 || delay > 30000) throw failure;
+            await new Promise<void>((resolve, reject) => {
+                const abortWait = () => {
+                    clearTimeout(timer);
+                    reject(signal.reason);
+                };
+                const timer = setTimeout(() => {
+                    signal.removeEventListener('abort', abortWait);
+                    resolve();
+                }, delay);
+                signal.addEventListener('abort', abortWait, { once: true });
+            });
+        }
     }
 
     private updateProgress(percent: number) {
@@ -367,56 +420,15 @@ export class ChunkifyUploader extends HTMLElement {
         );
     }
 
-    private showProgress() {
-        this.setAttribute('uploading', '');
-    
-        /* if (this.currentFile) {
-            const sizeInMB = (this.currentFile.size / (1024 * 1024)).toFixed(2);
-            
-            // Get user's element from file-info slot
-            const fileInfoElement = this.fileInfo.assignedNodes()[0] as HTMLElement;
-            
-            if (fileInfoElement) {
-                fileInfoElement.textContent = `Uploading: ${this.currentFile.name} (${sizeInMB} MB)`;
-            }
-        } */
-    }
-
-    private setSuccess(file: File) {
-        this.removeAttribute('uploading');
-
-        this.setAttribute('success', '');
-
-
-        this.dispatchEvent(
-            new CustomEvent('upload-success', {
-                detail: { file: file },
-            })
-        );
-    }
-
-    private setError(message: string, statusCode: number = 0) {
+    private setError(message: string, status: number) {
         this.setAttribute('error', '');
         this.removeAttribute('uploading');
-       
-        // Check for internal error and force display (except if no error component was set)
-        // If the user provided a slot but empty it means they want to display the original message that is passed here as parameters
-        if (statusCode < 0) {
-            //  Find and update error message component
-            const errorMessage = this.querySelector('chunkify-uploader-error');
-            if (errorMessage) {
-                (errorMessage as any).setMessage(message);
-            }
-        } 
-
-        this.dispatchEvent(
-            new CustomEvent('upload-error', {
-                detail: {
-                    error: message,
-                    status: statusCode,
-                },
-            })
-        );
+        if (status < 0) {
+            this.querySelector<ChunkifyUploaderError>('chunkify-uploader-error')?.setMessage(message);
+        }
+        this.dispatchEvent(new CustomEvent<UploadErrorDetail>('upload-error', {
+            detail: { error: message, status },
+        }));
     }
 }
 

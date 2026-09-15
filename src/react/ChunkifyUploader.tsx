@@ -1,6 +1,8 @@
 'use client';
 import React, { useRef, useEffect, FC, ReactNode, CSSProperties } from 'react';
 
+import type { ChunkifyUploader as UploaderElement, UploadProvider, UploadSuccessDetail, UploadErrorDetail } from '../chunkify-uploader';
+
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -11,16 +13,16 @@ declare global {
   }
 }
 
-interface ChunkifyUploaderProps {
-  endpoint?: string | (() => Promise<string>);
+export interface ChunkifyUploaderProps {
+  upload?: UploadProvider;
   maxFileSize?: number;
   drop?: boolean;
   
   // Event handlers
   onFileSelected?: (event: CustomEvent) => void;
   onUploadProgress?: (event: CustomEvent) => void;
-  onUploadSuccess?: (event: CustomEvent) => void;
-  onUploadError?: (event: CustomEvent) => void;
+  onUploadSuccess?: (event: CustomEvent<UploadSuccessDetail>) => void;
+  onUploadError?: (event: CustomEvent<UploadErrorDetail>) => void;
   
   // Children
   children?: ReactNode;
@@ -31,18 +33,18 @@ interface ChunkifyUploaderProps {
 }
 
 export const ChunkifyUploader: FC<ChunkifyUploaderProps> = (props) => {
-  const ref = useRef<HTMLElement>(null);
+  const ref = useRef<UploaderElement>(null);
 
   useEffect(() => {
     if (!ref.current) return;
     
-    const element = ref.current as any;
+    const element = ref.current;
     
     // Set properties
-    if (props.endpoint !== undefined) element.endpoint = props.endpoint;
-    if (props.maxFileSize !== undefined) element.maxFileSize = props.maxFileSize;
-    if (props.drop !== undefined) element.drop = props.drop;
-  }, [props.endpoint, props.maxFileSize, props.drop]);
+    element.upload = props.upload;
+    element.maxFileSize = props.maxFileSize ?? 0;
+    element.drop = props.drop ?? false;
+  }, [props.upload, props.maxFileSize, props.drop]);
 
   useEffect(() => {
     if (!ref.current) return;

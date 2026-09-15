@@ -13,16 +13,16 @@
   "types": "./dist/types/chunkify-uploader.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/types/chunkify-uploader.d.ts",
       "import": "./dist/chunkify-uploader.mjs",
       "require": "./dist/chunkify-uploader.cjs.js",
-      "default": "./dist/chunkify-uploader.cjs.js",
-      "types": "./dist/types/chunkify-uploader.d.ts"
+      "default": "./dist/chunkify-uploader.cjs.js"
     },
     "./react": {
+      "types": "./dist/types/react/index.d.ts",
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.js",
-      "default": "./dist/react/index.js",
-      "types": "./dist/types/react/index.d.ts"
+      "default": "./dist/react/index.js"
     }
   },
   "files": [
