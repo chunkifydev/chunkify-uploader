@@ -1,6 +1,7 @@
 // src/chunkify-upload-button.ts
 export class ChunkifyUploaderRetry extends HTMLElement {
     connectedCallback() {
+        if (this.shadowRoot) return;
         this.attachShadow({ mode: 'open' });
         this.render();
         this.setupClick();
@@ -22,7 +23,7 @@ export class ChunkifyUploaderRetry extends HTMLElement {
     
     private setupClick() {
         this.addEventListener('click', () => {
-            this.dispatchEvent(new CustomEvent('reset', {
+            this.dispatchEvent(new CustomEvent('retry', {
                 bubbles: true
             }));
         });

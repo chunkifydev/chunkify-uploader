@@ -9,5 +9,5 @@ export { ChunkifyUploaderError } from './ChunkifyUploaderError';
 export { ChunkifyUploaderSuccess } from './ChunkifyUploaderSuccess';
 export { ChunkifyUploaderHeading } from './ChunkifyUploaderHeading';
 export { ChunkifyUploaderRetry } from './ChunkifyUploaderRetry';
-export type { UploadSession, UploadProvider, UploadSuccessDetail, UploadErrorDetail } from '../chunkify-uploader';
+export type { UploadSession, SingleUploadSession, MultipartUploadSession, UploadPart, UploadProvider, UploadSuccessDetail, UploadErrorDetail } from '../chunkify-uploader';
 export type { ChunkifyUploaderProps } from './ChunkifyUploader';

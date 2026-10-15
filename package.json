@@ -32,7 +32,8 @@
     "build:web": "node plugins/build-with-ssr-guards.js",
     "build:react": "esbuild src/react/index.ts --target=es2019 --bundle --format=esm --outdir=dist/react --external:react --external:react-dom",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
-    "build": "npm run build:web && npm run build:react && npm run build:types"
+    "build": "npm run build:web && npm run build:react && npm run build:types",
+    "test": "npm run build && node --test tests/*.test.mjs"
   },
   "keywords": [
     "upload",
@@ -50,6 +51,7 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "esbuild": "^0.25.8",
+    "happy-dom": "^21.0.1",
     "typescript": "^5.8.3"
   }
 }
