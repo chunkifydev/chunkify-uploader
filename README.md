@@ -37,7 +37,7 @@ The CSS styling by default is very minimal so you will have to provide your own 
 
 Here is a simple implementation with some simple CSS styling with a drop zone available, a file select button, a progress bar and text, an error and finally a success message.
 
-`/your-api/create-upload-session` is a placeholder for a route you implement in your application. That route calls the Chunkify API using your project token and returns `upload_url` and `completion_url`. Replace this path with your own backend route.
+`/your-api/create-upload-session` is a placeholder for a route you implement in your application. That route uses the official Chunkify SDK with your Project token and returns a single or multipart Upload session. Replace this path with your own backend route.
 
 ```html HTML
 <style>
@@ -69,14 +69,19 @@ Here is a simple implementation with some simple CSS styling with a drop zone av
     <chunkify-uploader-file-select>Select a file</chunkify-uploader-file-select>
     <chunkify-uploader-progress-text></chunkify-uploader-progress-text>
     <chunkify-uploader-progress-bar></chunkify-uploader-progress-bar>
-    <chunkify-uploader-error>Upload Error</chunkify-uploader-error>
+    <chunkify-uploader-error></chunkify-uploader-error>
+    <chunkify-uploader-retry>Retry</chunkify-uploader-retry>
     <chunkify-uploader-success>Upload Success!</chunkify-uploader-success>
 </chunkify-uploader>
 
 <script>
   const chunkifyUploader = document.querySelector('chunkify-uploader');
   chunkifyUploader.upload = function (file) {
-    return fetch('/your-api/create-upload-session', { method: 'POST' })
+    return fetch('/your-api/create-upload-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_size_bytes: file.size }),
+    })
       .then(res => {
         if (!res.ok) throw new Error('Could not create an upload session.');
         return res.json();
@@ -87,7 +92,29 @@ Here is a simple implementation with some simple CSS styling with a drop zone av
 
 ## Setup
 
-Chunkify Uploader accepts a session from the Chunkify Uploads API through the `upload` JavaScript property. The session contains `upload_url` and `completion_url`.
+Chunkify Uploader accepts a session from the Chunkify Uploads API through the `upload` JavaScript property. Your server creates the session with `file_size_bytes: file.size`. When `upload_mode` is omitted, the API defaults to `auto`: single PUT at or below 100 MiB, multipart above it. The component follows the returned mode and never chooses a threshold.
+
+The accepted session shapes are:
+
+```typescript
+type UploadSession = {
+  upload_mode: 'single';
+  upload_url: string;
+  completion_url: string;
+  expires_at: string;
+} | {
+  upload_mode: 'multipart';
+  completion_url: string;
+  expires_at?: string;
+  multipart: {
+    part_size_bytes: number;
+    parts: { part_number: number; upload_url: string }[];
+    expires_at: string;
+  };
+};
+```
+
+Expiry values are ISO 8601 timestamps. Return the API's expiry fields unchanged.
 
 Provide a fresh session for each file. You can supply an existing session object or a function that creates one after file selection.
 
@@ -99,17 +126,29 @@ Provide a fresh session for each file. You can supply an existing session object
 <script>
   const chunkifyUploader = document.querySelector('chunkify-uploader');
   chunkifyUploader.upload = {
+    upload_mode: 'single',
     upload_url: 'PRESIGNED_UPLOAD_URL',
+    expires_at: 'EXPIRY_TIMESTAMP_FROM_API',
     completion_url: 'COMPLETION_URL',
   };
 </script>
 ```
 
-Use the two URLs returned by the API. Set the object through JavaScript; it cannot be supplied as an HTML attribute. In React, pass the same object as `upload={session}`.
+Use the session fields returned by the API. Set the object through JavaScript; it cannot be supplied as an HTML attribute. In React, pass the same object as `upload={session}`.
 
 You can create a session using the [Chunkify Uploads API](https://chunkify.dev/docs/api-reference/uploads/create-a-new-upload).
 
-The component sends the file to `upload_url` with PUT, then sends an empty POST to `completion_url` without a project token or cookies. It reports success only after completion returns 204. Each session can be used for one file; replace a supplied object before another attempt.
+For single PUT, the component sends the file to `upload_url`, then sends an empty POST to `completion_url`. For multipart, it uploads slices sequentially using the returned part numbers and part size, then POSTs every part's exact ETag in ascending order:
+
+```json
+{
+  "parts": [
+    { "part_number": 1, "etag": "\"returned-etag\"" }
+  ]
+}
+```
+
+Multipart completion uses `Content-Type: application/json`. Completion sends no Project token or cookies, and success requires HTTP 204. File bytes go directly from the browser to storage. Each session belongs to one file; retries reuse that session.
 
 ### Fetching the upload session asynchronously
 
@@ -128,10 +167,14 @@ Depending on your workflow, you might want to create the session after the user 
   */
   chunkifyUploader.upload = function (file) {
     /*
-      Your server returns { upload_url, completion_url }.
+      Your server returns the single or multipart session fields.
       Use file.name here if your backend needs it to choose an object path.
     */
-    return fetch("/your-api/create-upload-session", { method: "POST" })
+    return fetch("/your-api/create-upload-session", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_size_bytes: file.size }),
+    })
     .then(res => {
       if (!res.ok) throw new Error('Could not create an upload session.');
       return res.json();
@@ -154,7 +197,11 @@ Since sessions are temporary and belong to one file, create them on demand. Here
 
 import express from 'express';
 import cors from 'cors';
+import Chunkify from '@chunkify/chunkify';
 
+const client = new Chunkify({
+    projectAccessToken: process.env.CHUNKIFY_PROJECT_TOKEN,
+});
 const app = express();
 // CORS configuration
 app.use(cors({
@@ -169,24 +216,27 @@ app.use(express.json());
 app.use(express.static('public'));
 
 const uploadHandler = async (req, res) => {
-    try{
-        // Create the upload entry using the project's default storage.
-        const response = await fetch('https://api.chunkify.dev/v1/api/uploads', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${process.env.CHUNKIFY_PROJECT_TOKEN}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({}),
+    const { file_size_bytes } = req.body;
+    if (!Number.isSafeInteger(file_size_bytes) || file_size_bytes <= 0) {
+        return res.status(400).json({ error: 'A positive file_size_bytes is required.' });
+    }
+    try {
+        const upload = await client.uploads.create({
+            file_size_bytes,
         });
-        if (!response.ok) {
-            return res.status(502).json({ error: 'Could not create an upload session.' });
-        }
-        const { data: upload } = await response.json();
-        // Return the session without exposing the project token.
-        const { upload_url, completion_url } = upload;
+        // Return only the per-upload capabilities. Keep tokens and credentials on the server.
         res.set('Cache-Control', 'no-store');
-        res.json({ upload_url, completion_url });
+        res.json(upload.upload_mode === 'multipart' ? {
+            upload_mode: upload.upload_mode,
+            completion_url: upload.completion_url,
+            expires_at: upload.expires_at,
+            multipart: upload.multipart,
+        } : {
+            upload_mode: upload.upload_mode,
+            upload_url: upload.upload_url,
+            completion_url: upload.completion_url,
+            expires_at: upload.expires_at,
+        });
     } catch (error) {
         res.status(502).json({ error: 'Could not create an upload session.' });
     }
@@ -202,9 +252,66 @@ app.listen(PORT, () => {
 
 ```
 
-The empty request body uses the project's default storage. Set `storage_id` to override it. Customer-connected storage requires a `path` including the filename, even when it is the default. Omit `path` for Chunkify-managed storage. Configure the destination on your backend; see [uploader setup](https://chunkify.dev/docs/integration/uploader/setup) for request examples and bucket CORS requirements.
+This request uses the Project's default storage. Use `storage.id` to override it. Customer-connected storage requires `storage.path` including the filename, even when it is the default. Omit the path for Chunkify-managed storage. Configure the destination on your backend; see [uploader setup](https://chunkify.dev/docs/integration/uploader/setup) for request examples and bucket CORS requirements.
 
 Sessions expire after two hours by default. Your backend can set `expires_in` between 300 and 36000 seconds.
+
+### Storage CORS
+
+Storage must allow your application's browser origin to make `PUT` requests with the `Content-Type` header. Multipart uploads also need `ETag` in the storage CORS **exposed response headers**, so browser JavaScript can read each successful part's ETag. Allowing the request alone is not enough. Preserve the ETag's quotation marks.
+
+For S3-compatible storage, merge these settings into the bucket's existing CORS policy, using your application's actual origin:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://app.example.com"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag", "Retry-After"]
+  }
+]
+```
+
+`Retry-After` exposure lets the component honor storage retry delays when that header is returned. Configure CORS at the storage endpoint receiving the PUT, and retain any existing playback or other application rules. Express CORS on the session route does not configure storage CORS.
+
+### React
+
+The same session provider works with the React wrappers. The session union and its individual types are exported from both `@chunkify/uploader` and `@chunkify/uploader/react`.
+
+```tsx
+import {
+  ChunkifyUploader,
+  ChunkifyUploaderFileSelect,
+  ChunkifyUploaderProgressBar,
+  ChunkifyUploaderError,
+  ChunkifyUploaderRetry,
+  ChunkifyUploaderSuccess,
+  type UploadSession,
+} from '@chunkify/uploader/react';
+
+async function createUpload(file: File): Promise<UploadSession> {
+  const response = await fetch('/your-api/create-upload-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_size_bytes: file.size }),
+  });
+  if (!response.ok) throw new Error('Could not create an upload session.');
+  return response.json();
+}
+
+export function VideoUpload() {
+  return (
+    <ChunkifyUploader upload={createUpload} drop>
+      <ChunkifyUploaderFileSelect>Select a file</ChunkifyUploaderFileSelect>
+      <ChunkifyUploaderProgressBar />
+      <ChunkifyUploaderError />
+      <ChunkifyUploaderRetry>Retry</ChunkifyUploaderRetry>
+      <ChunkifyUploaderSuccess>Upload complete</ChunkifyUploaderSuccess>
+    </ChunkifyUploader>
+  );
+}
+```
 
 ### Configure Uploader
 
@@ -279,7 +386,14 @@ Here are all the events, when they will fire, and what they hold:
 
 The success event contains the selected File. It does not return a Source ID; your backend can read it from the Upload or the `upload.completed` webhook.
 
-The `upload-reset` event fires when the component resets. Reset cancels active browser requests and ignores pending provider results; it does not delete the Upload or its stored file.
+The `upload-reset` event fires when the component resets. Call `uploader.reset()` or dispatch a `reset` event for explicit start-over. Reset cancels active browser requests, ignores pending provider results, and discards the retained file, session, and ETags. It does not delete the Upload or its stored file. The next selection needs a fresh session; replace a static session object first.
+
+```javascript
+// Wire this to your application's separate Start over control.
+uploader.reset();
+// Equivalent, including from a custom child control:
+uploader.dispatchEvent(new CustomEvent('reset', { bubbles: true }));
+```
 
 #### Example
 
@@ -310,22 +424,25 @@ Here we display in the console the uploaded file name when the upload is complet
 
 ### Error handling
 
-Network failures, HTTP 429, and server errors during completion get up to three attempts with delays between them. The file is not sent again. Each completion request times out after 30 seconds. An expired completion URL returns HTTP 410, which is not retried. HTTP 403 and other client errors are not automatically retried.
+Each transfer and completion request gets up to three total attempts for network failures, timeouts, HTTP 408, 429, and 5xx responses. Delays start at 500 ms and then 1 second. `Retry-After` can extend the delay up to 30 seconds. A larger value stops automatic retries rather than retrying before the server permits it. Completion requests time out after 30 seconds; transfers time out after 120 seconds without progress.
 
-The Retry control returns to file selection. The next selection needs a fresh session. A session provider creates it automatically; if you supplied an object, replace it first. A lost completion response can leave the Upload completed even when the browser reports an error. Your backend can reconcile it through a status read or webhook.
+After automatic attempts are exhausted, `<chunkify-uploader-retry>` resumes the failed step using the retained file and session. You can also call `uploader.retry()`. Completed parts are not sent again. Once the transfer has finished, Retry only repeats completion with the same URL and body. If a completion response was lost after the server succeeded, the same completion request can return 204 without creating another Source. Retry does not request a fresh session once one has been accepted.
 
-Using the `chunkify-uploader-error` sub component is the way to display errors to the user.
+Retry appears when recovery is possible, indicated by the uploader's `retryable` attribute. HTTP 403 is not treated as proof of expiry and is not retried automatically. You may retry the same session after fixing permissions. A known expiry or HTTP 410 requires a new session through explicit start-over. Other non-retryable client errors, such as an invalid session or completion conflict, also require start-over. If the provider failed before returning a session, a manual retry calls it again with the retained file.
 
-<CodeGroup>
-```html HTML
-<chunkify-uploader-error>Error: Upload Failed</chunkify-uploader-error>
+State lives only in memory. Removing the component aborts browser requests and discards the file and session, including after an error. There is no reload persistence, background upload, URL refresh, list-parts request, or storage cancellation request.
+
+Use an empty error component for the uploader's fallback messages. Formatting whitespace inside the element does not hide the message:
+
+```html
+<chunkify-uploader-error></chunkify-uploader-error>
 ```
 
-The message "Error: Upload Failed" will be displayed when an error occurs during the upload process. If you want to customize it depending on the error you can use the `upload-error` event discussed above.
-File processing errors such as `max-file-size` exceeded, API and network errors will be handled by the uploader.
+Custom content in the error component, including React children, overrides fallback messages for transfer and completion errors. The `upload-error` event always contains the detailed message and status, so your application can render errors elsewhere or update its own content. Missing multipart ETags are reported as a storage CORS configuration problem; after fixing CORS, Retry sends only the part whose ETag could not be read and any remaining parts.
 
-***Note:*** Only two types of errors are not customizable: first if the user chose a file that exceeds the `max-file-size` and second if the upload session configuration is missing or invalid.
-The error message will be displayed in both cases where the component `<chunkify-uploader-error>` has been used. For API, network, and completion errors, an empty error component remains empty; provide your own text or update it in an `upload-error` handler.
+***Note:*** Two types of errors are not customizable: a selected file exceeding `max-file-size`, and missing or invalid upload session configuration. When `<chunkify-uploader-error>` is present, these messages replace its custom content so the specific validation error is shown.
+
+Calling `clear()` on the error component removes both its custom content and its fallback message.
 
 ## Styles
 
@@ -347,7 +464,7 @@ You can and must override all components CSS except the progress bar where you m
 | `<chunkify-uploader-progress-text>` | Progress Percent               | Yes               | Uploading      |
 | `<chunkify-uploader-progress-bar>`  | Progress Bar                   | Use CSS variables | Uploading      |
 | `<chunkify-uploader-error>`         | Error message                  | Yes               | Upload Error   |
-| `<chunkify-uploader-retry>`         | Reset to initital state button | Yes               | Upload Error   |
+| `<chunkify-uploader-retry>`         | Retry the failed step | Yes               | Upload Error   |
 | `<chunkify-uploader-success>`       | Success message                | Yes               | Upload Success |
 
 ### Minimalistic example
@@ -588,10 +705,10 @@ The workflow goes generally like this:
 - Configure the webhook in your Chunkify dashboard to send events to this endpoint
 
 #### 2. Upload the video
-- Create an upload session using Chunkify API.
+- Create an upload session on your server using the official Chunkify SDK and the selected file size.
 - Save relevant information in your database, the upload ID for example.
 - Pass the session to the `upload` property of the Chunkify Uploader (see [Setup](#setup) section).
-- The component sends the file with PUT, then calls the completion URL with POST.
+- The component transfers the file using the returned single or multipart mode, then POSTs to the completion URL.
 
 #### 3. Handle webhooks events
 Listen for specific events:
@@ -605,3 +722,7 @@ Once the upload is completed and you receive the event, you can save the `source
 
 
 > **💡 Tip:** You can pass metadata during upload creation to help with your workflow. Any metadata you include in the upload will be automatically copied to the source metadata. For example, If you want to link a source to a specific user, include the `user_id` in the upload metadata. This `user_id` will then be available in the source metadata, making it easy to track which user uploaded which content.
+
+## Development verification
+
+Run `npm test` with Node.js 20.19 or later. It builds the web and React bundles and TypeScript declarations, then runs DOM tests with simulated storage and completion requests. The tests cover multipart slices, progress, retries, expiry, and cancellation. Lost-response tests model the backend's idempotent completion contract; they do not contact live storage or create real Sources.

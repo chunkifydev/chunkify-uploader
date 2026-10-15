@@ -7,9 +7,32 @@ import './chunkify-uploader-success';
 import './chunkify-uploader-heading';
 import './chunkify-uploader-retry';
 
-export interface UploadSession {
+export interface SingleUploadSession {
+    upload_mode: 'single';
     upload_url: string;
     completion_url: string;
+    expires_at: string;
+}
+
+export interface MultipartUploadSession {
+    upload_mode: 'multipart';
+    completion_url: string;
+    expires_at?: string;
+    multipart: {
+        part_size_bytes: number;
+        parts: { part_number: number; upload_url: string }[];
+        expires_at: string;
+    };
+}
+
+export type UploadSession = SingleUploadSession | MultipartUploadSession;
+export interface UploadPart { part_number: number; etag: string; }
+
+interface UploadState {
+    file: File;
+    session?: UploadSession;
+    parts: UploadPart[];
+    transferred: boolean;
 }
 
 export type UploadProvider = UploadSession | ((file: File) => Promise<UploadSession>);
@@ -19,6 +42,16 @@ export interface UploadErrorDetail { error: string; status: number; }
 class UploadRequestError extends Error {
     constructor(message: string, readonly status: number = 0, readonly retryAfter: number = 0) {
         super(message);
+    }
+
+    get retryable() {
+        return this.status === 0 || this.status === 408 || this.status === 429 ||
+            (this.status >= 500 && this.status < 600);
+    }
+
+    get recoverable() {
+        // Permissions and exposed ETags can be fixed without replacing the session.
+        return this.retryable || this.status === 403 || this.status === -3;
     }
 }
 
@@ -30,6 +63,7 @@ export class ChunkifyUploader extends HTMLElement {
     private _upload?: UploadProvider;
     private operation?: AbortController;
     private initialized = false;
+    private state?: UploadState;
     private usedSessions = new Set<string>();
     private fileInput!: HTMLInputElement;
 
@@ -53,7 +87,7 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
     disconnectedCallback() {
-        if (this.operation) this.resetState();
+        this.reset();
     }
 
     attributeChangedCallback(name: string) {
@@ -172,6 +206,10 @@ export class ChunkifyUploader extends HTMLElement {
                     --retry-display: block;
                 }
 
+                :host([error]:not([retryable])) {
+                    --retry-display: none;
+                }
+
                 :host([success]) {
                     --file-select-display: none;
                     --progress-text-display: none;
@@ -214,8 +252,9 @@ export class ChunkifyUploader extends HTMLElement {
         }
 
         this.addEventListener('reset', () => {
-            this.resetState();
+            this.reset();
         });
+        this.addEventListener('retry', () => this.retry());
     }
 
     private setupDropListeners() {
@@ -245,9 +284,12 @@ export class ChunkifyUploader extends HTMLElement {
     }
 
 
-    private resetState() {
+    /** Abort browser requests and discard this file/session. Select a file to start over. */
+    reset() {
         this.operation?.abort();
         this.operation = undefined;
+        this.state = undefined;
+        this.removeAttribute('retryable');
         this.removeAttribute('progress');
         this.removeAttribute('dragover');
         this.removeAttribute('error');
@@ -262,7 +304,7 @@ export class ChunkifyUploader extends HTMLElement {
         progressBar?.setAttribute('value', '0');
            
         // Reset file input
-        this.fileInput.value = '';
+        if (this.fileInput) this.fileInput.value = '';
 
         this.dispatchEvent(new CustomEvent('upload-reset', {
             bubbles: true
@@ -281,29 +323,51 @@ export class ChunkifyUploader extends HTMLElement {
             return;
         }
 
+        this.state = { file, parts: [], transferred: false };
+        await this.runUpload(true);
+    }
+
+    /** Resume the current session without creating another session or resending completed parts. */
+    retry() {
+        if (!this.operation && this.state && this.hasAttribute('retryable')) {
+            void this.runUpload();
+        }
+    }
+
+    private async runUpload(selected = false) {
+        const state = this.state!;
         const operation = new AbortController();
         this.operation = operation;
         const { signal } = operation;
+        this.removeAttribute('error');
+        this.removeAttribute('retryable');
         this.setAttribute('uploading', '');
-        this.dispatchEvent(new CustomEvent('file-selected', { detail: { file } }));
+        if (selected) this.dispatchEvent(new CustomEvent('file-selected', { detail: { file: state.file } }));
 
         try {
             signal.throwIfAborted();
-            const upload = this.upload;
-            const session = typeof upload === 'function' ? await upload(file) : upload;
-            signal.throwIfAborted();
-            this.validateSession(session);
-            this.usedSessions.add(session.completion_url);
-            await this.uploadFile(file, session, signal);
-            signal.throwIfAborted();
+            if (!state.session) {
+                const upload = this.upload;
+                const session = typeof upload === 'function' ? await upload(state.file) : upload;
+                signal.throwIfAborted();
+                state.session = this.validateSession(session, state.file);
+                this.usedSessions.add(state.session.completion_url);
+            }
+            if (!state.transferred) {
+                await this.uploadFile(state, signal);
+                signal.throwIfAborted();
+                state.transferred = true;
+            }
             this.updateProgress(100);
-            await this.completeUpload(session, signal);
+            signal.throwIfAborted();
+            await this.withRetries(state.session, signal, () => this.completeUpload(state, signal));
             signal.throwIfAborted();
             this.operation = undefined;
+            this.state = undefined;
             this.removeAttribute('uploading');
             this.setAttribute('success', '');
             this.dispatchEvent(new CustomEvent<UploadSuccessDetail>('upload-success', {
-                detail: { file },
+                detail: { file: state.file },
             }));
         } catch (error) {
             if (signal.aborted) return;
@@ -311,95 +375,202 @@ export class ChunkifyUploader extends HTMLElement {
             const failure = error as { message?: unknown; status?: unknown } | null;
             const message = typeof failure?.message === 'string' ? failure.message : 'Upload failed';
             const status = typeof failure?.status === 'number' ? failure.status : 0;
+            this.toggleAttribute('retryable', new UploadRequestError(message, status).recoverable);
             this.setError(message, status);
         }
     }
 
-    private validateSession(session: UploadSession | undefined): asserts session is UploadSession {
-        if (!session) {
-            throw new UploadRequestError('Invalid upload session. Expected upload_url and completion_url.', -1);
+    private validateSession(session: UploadSession | undefined, file: File): UploadSession {
+        if (!session || !['single', 'multipart'].includes(session.upload_mode)) {
+            throw new UploadRequestError('Invalid upload session. Expected single or multipart mode.', -1);
         }
-        for (const url of [session.upload_url, session.completion_url]) {
+        const urls = [session.completion_url];
+        const dates = session.expires_at === undefined ? [] : [session.expires_at];
+        let result: UploadSession;
+        if (session.upload_mode === 'multipart') {
+            const multipart = session.multipart;
+            if (!multipart || !Number.isSafeInteger(multipart.part_size_bytes) || multipart.part_size_bytes <= 0 ||
+                !Array.isArray(multipart.parts) || multipart.parts.length === 0 || multipart.parts.length > 10000 ||
+                multipart.parts.length !== Math.ceil(file.size / multipart.part_size_bytes)) {
+                throw new UploadRequestError('Invalid multipart session. Expected a signed URL for every file part.', -1);
+            }
+            const parts = multipart.parts.map(part => ({ ...part })).sort((a, b) => a.part_number - b.part_number);
+            if (parts.some((part, index) => part.part_number !== index + 1)) {
+                throw new UploadRequestError('Invalid multipart session. Part numbers must be consecutive, starting at 1.', -1);
+            }
+            urls.push(...parts.map(part => part.upload_url));
+            dates.push(multipart.expires_at);
+            result = { ...session, multipart: { ...multipart, parts } };
+        } else {
+            urls.push(session.upload_url);
+            dates.push(session.expires_at);
+            result = { ...session };
+        }
+        for (const url of urls) {
             try {
-                if (!['https:', 'http:'].includes(new URL(url).protocol)) throw new Error();
+                if (typeof url !== 'string' || !['https:', 'http:'].includes(new URL(url).protocol)) throw new Error();
             } catch {
                 throw new UploadRequestError('Invalid upload session URL.', -1);
             }
         }
+        if (dates.some(date => typeof date !== 'string' || !Number.isFinite(Date.parse(date)))) {
+            throw new UploadRequestError('Invalid upload session expiry.', -1);
+        }
         if (this.usedSessions.has(session.completion_url)) {
             throw new UploadRequestError('This upload session has already been used. Provide a new session.', -1);
         }
+        return result;
     }
 
-    private uploadFile(file: File, session: UploadSession, signal: AbortSignal): Promise<void> {
+    private checkExpiry(session: UploadSession) {
+        const dates = [session.expires_at];
+        if (session.upload_mode === 'multipart') dates.push(session.multipart.expires_at);
+        if (dates.some(date => date !== undefined && Date.now() >= Date.parse(date))) {
+            throw new UploadRequestError('The upload session expired. Start over with a new session.', 410);
+        }
+    }
+
+    private async uploadFile(state: UploadState, signal: AbortSignal) {
+        const { file } = state;
+        const session = state.session!;
+        if (session.upload_mode !== 'multipart') {
+            await this.withRetries(session, signal, () => this.putFile(file, session.upload_url, file.size, 0, false, signal));
+            return;
+        }
+        const { multipart } = session;
+        for (const part of multipart.parts.slice(state.parts.length)) {
+            const offset = (part.part_number - 1) * multipart.part_size_bytes;
+            const body = file.slice(offset, offset + multipart.part_size_bytes);
+            const etag = await this.withRetries(session, signal, () =>
+                this.putFile(body, part.upload_url, file.size, offset, true, signal));
+            signal.throwIfAborted();
+            state.parts.push({ part_number: part.part_number, etag: etag! });
+        }
+    }
+
+    private putFile(body: Blob, url: string, total: number, offset: number, requireETag: boolean, signal: AbortSignal): Promise<string | null> {
         return new Promise((resolve, reject) => {
             signal.throwIfAborted();
             const xhr = new XMLHttpRequest();
+            let settled = false;
+            let timeout: ReturnType<typeof setTimeout>;
             const abort = () => xhr.abort();
-            const finish = (error?: UploadRequestError) => {
+            const finish = (error?: UploadRequestError, etag: string | null = null) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeout);
                 signal.removeEventListener('abort', abort);
-                error ? reject(error) : resolve();
+                if (error) {
+                    if (!signal.aborted) this.updateProgress(total ? offset / total * 100 : 0);
+                    reject(error);
+                } else resolve(etag);
+            };
+            // An idle timeout allows large single PUTs to keep making progress.
+            const resetTimeout = () => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    finish(new UploadRequestError('Upload timed out. Retry the upload.'));
+                    xhr.abort();
+                }, 120000);
             };
             xhr.upload.onprogress = (event) => {
-                if (!signal.aborted && event.lengthComputable) {
-                    this.updateProgress(event.loaded / event.total * 100);
+                if (!signal.aborted && !settled) {
+                    resetTimeout();
+                    if (event.lengthComputable && total) {
+                        this.updateProgress((offset + Math.min(event.loaded, body.size)) / total * 100);
+                    }
                 }
             };
-            xhr.onload = () => xhr.status >= 200 && xhr.status < 300
-                ? finish()
-                : finish(new UploadRequestError(`Upload failed with status: ${xhr.status}`, xhr.status));
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const etag = xhr.getResponseHeader('ETag');
+                    if (requireETag && !etag?.trim()) {
+                        finish(new UploadRequestError('Storage did not expose the part ETag. Add ETag to the storage CORS exposed headers, then retry.', -3));
+                    } else finish(undefined, etag);
+                } else {
+                    let message = `Upload failed with status: ${xhr.status}`;
+                    if (xhr.status === 403) message = 'Storage refused the upload (403). Check storage permissions and signed URL validity, then retry or start over.';
+                    if (xhr.status === 410) message = 'The upload session is no longer available. Start over with a new session.';
+                    finish(new UploadRequestError(message, xhr.status, this.retryAfter(xhr.getResponseHeader('Retry-After'))));
+                }
+            };
             xhr.onerror = () => finish(new UploadRequestError('Network error during upload.'));
+            xhr.ontimeout = () => finish(new UploadRequestError('Upload timed out. Retry the upload.'));
             xhr.onabort = () => finish(new UploadRequestError('Upload cancelled.'));
-            xhr.open('PUT', session.upload_url);
-            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-            signal.addEventListener('abort', abort, { once: true });
-            xhr.send(file);
+            try {
+                xhr.open('PUT', url);
+                xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+                signal.addEventListener('abort', abort, { once: true });
+                resetTimeout();
+                xhr.send(body);
+            } catch {
+                finish(new UploadRequestError('Could not send the file to storage.'));
+            }
         });
     }
 
-    private async completeUpload(session: UploadSession, signal: AbortSignal) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-            signal.throwIfAborted();
-            const controller = new AbortController();
-            const abort = () => controller.abort();
-            const timeout = setTimeout(abort, 30000);
-            signal.addEventListener('abort', abort, { once: true });
-            let failure: UploadRequestError;
-            try {
-                const response = await fetch(session.completion_url, {
-                    method: 'POST', credentials: 'omit', signal: controller.signal,
-                });
-                if (response.status === 204) return;
-                let message = `Upload completion failed with status: ${response.status}`;
-                try {
-                    const body = await response.json();
-                    if (typeof body?.error?.message === 'string') message = body.error.message;
-                } catch { /* Proxies may return errors without a JSON body. */ }
-                const retryAfter = response.headers.get('Retry-After');
-                const delay = retryAfter === null ? 0 : /^\d+$/.test(retryAfter)
-                    ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now()) || 0;
-                failure = new UploadRequestError(message, response.status, delay);
-            } catch {
-                failure = new UploadRequestError('Could not confirm upload completion.');
-            } finally {
-                clearTimeout(timeout);
-                signal.removeEventListener('abort', abort);
-            }
-            signal.throwIfAborted();
-            const retryable = failure.status === 0 || failure.status === 429 || failure.status >= 500;
-            const delay = Math.max(500 * 2 ** attempt, failure.retryAfter);
-            if (!retryable || attempt === 2 || delay > 30000) throw failure;
-            await new Promise<void>((resolve, reject) => {
-                const abortWait = () => {
-                    clearTimeout(timer);
-                    reject(signal.reason);
-                };
-                const timer = setTimeout(() => {
-                    signal.removeEventListener('abort', abortWait);
-                    resolve();
-                }, delay);
-                signal.addEventListener('abort', abortWait, { once: true });
+    private async completeUpload(state: UploadState, signal: AbortSignal) {
+        signal.throwIfAborted();
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const timeout = setTimeout(abort, 30000);
+        signal.addEventListener('abort', abort, { once: true });
+        try {
+            const response = await fetch(state.session!.completion_url, {
+                method: 'POST', credentials: 'omit', signal: controller.signal,
+                ...(state.session!.upload_mode === 'multipart' ? {
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ parts: state.parts }),
+                } : {}),
             });
+            if (response.status === 204) return;
+            let message = `Upload completion failed with status: ${response.status}`;
+            try {
+                const body = await response.json();
+                if (typeof body?.error?.message === 'string') message = body.error.message;
+            } catch { /* Proxies may return errors without a JSON body. */ }
+            if (response.status === 410) message = 'The upload session expired or is no longer available. Start over with a new session.';
+            throw new UploadRequestError(message, response.status, this.retryAfter(response.headers.get('Retry-After')));
+        } catch (error) {
+            if (error instanceof UploadRequestError) throw error;
+            throw new UploadRequestError('Could not confirm upload completion. Retry to confirm without uploading the file again.');
+        } finally {
+            clearTimeout(timeout);
+            signal.removeEventListener('abort', abort);
+        }
+    }
+
+    private retryAfter(value: string | null): number {
+        return value === null ? 0 : /^\d+$/.test(value)
+            ? Number(value) * 1000 : Math.max(0, Date.parse(value) - Date.now()) || 0;
+    }
+
+    private async withRetries<T>(session: UploadSession, signal: AbortSignal, request: () => Promise<T>): Promise<T> {
+        for (let attempt = 0; ; attempt++) {
+            signal.throwIfAborted();
+            this.checkExpiry(session);
+            try {
+                const result = await request();
+                signal.throwIfAborted();
+                return result;
+            } catch (error) {
+                signal.throwIfAborted();
+                this.checkExpiry(session);
+                if (!(error instanceof UploadRequestError)) throw error;
+                const delay = Math.max(500 * 2 ** attempt, error.retryAfter);
+                if (!error.retryable || attempt === 2 || delay > 30000) throw error;
+                await new Promise<void>((resolve, reject) => {
+                    const abortWait = () => {
+                        clearTimeout(timer);
+                        reject(signal.reason);
+                    };
+                    const timer = setTimeout(() => {
+                        signal.removeEventListener('abort', abortWait);
+                        resolve();
+                    }, delay);
+                    signal.addEventListener('abort', abortWait, { once: true });
+                });
+            }
         }
     }
 
@@ -423,8 +594,11 @@ export class ChunkifyUploader extends HTMLElement {
     private setError(message: string, status: number) {
         this.setAttribute('error', '');
         this.removeAttribute('uploading');
-        if (status < 0) {
-            this.querySelector<ChunkifyUploaderError>('chunkify-uploader-error')?.setMessage(message);
+        const errorDisplay = this.querySelector<ChunkifyUploaderError>('chunkify-uploader-error');
+        if (status === -1 || status === -2) {
+            errorDisplay?.setMessage(message);
+        } else {
+            errorDisplay?.setDefaultMessage(message);
         }
         this.dispatchEvent(new CustomEvent<UploadErrorDetail>('upload-error', {
             detail: { error: message, status },

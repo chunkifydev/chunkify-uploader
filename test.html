@@ -19,19 +19,21 @@
         <chunkify-uploader-file-select>Select a file</chunkify-uploader-file-select>
         <chunkify-uploader-progress-text></chunkify-uploader-progress-text>
         <chunkify-uploader-progress-bar></chunkify-uploader-progress-bar>
-        <chunkify-uploader-error>Upload failed. Please try again.</chunkify-uploader-error>
+        <chunkify-uploader-error></chunkify-uploader-error>
         <chunkify-uploader-retry>Retry</chunkify-uploader-retry>
         <chunkify-uploader-success>Upload complete!</chunkify-uploader-success>
     </chunkify-uploader>
+    <button id="start-over">Start over</button>
     <pre id="logs"></pre>
     <script type="module">
         import './dist/chunkify-uploader.mjs';
         const uploader = document.querySelector('chunkify-uploader');
+        document.querySelector('#start-over').onclick = () => uploader.reset();
         uploader.upload = async (file) => {
             const response = await fetch('/api/uploads', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: file.name }),
+                body: JSON.stringify({ filename: file.name, file_size_bytes: file.size }),
             });
             const result = await response.json();
             if (!response.ok) {
